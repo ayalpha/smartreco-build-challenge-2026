@@ -1,12 +1,12 @@
 <div align="center">
 
-# ◈ SmartReco
+# ◈ Nexora
 
 **A behavioural AI recommendation agent that watches, understands, and persuades.**
 
-Built for the **SmartReco Build Challenge 2026**
+Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 
-[![SmartReco Checks](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml/badge.svg)](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml)
+[![Nexora Checks](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml/badge.svg)](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-state%20machine-1C3C3C)
@@ -20,7 +20,7 @@ Built for the **SmartReco Build Challenge 2026**
 
 ## 1. What this is, and what makes it different
 
-SmartReco is a learning marketplace (think Udemy) with a genuine **agent** behind the
+Nexora is a learning marketplace (think Udemy) with a genuine **agent** behind the
 recommendations rather than a similarity query wearing a trench coat.
 
 It observes real behaviour — clicks, searches, dwell time, cart adds — and then runs a
@@ -52,6 +52,17 @@ Five things here are unusual for a hackathon build:
 
 ---
 
+
+## 1.5. Latest Updates (Nexora Revamp)
+
+The frontend has been completely overhauled with a stunning new dynamic design system featuring glassmorphism, fluid micro-animations, and a premium dark mode. 
+
+**New Features Added:**
+- **Interactive AI Assistant:** A slide-out conversational interface where users can chat directly with the recommendation agent, ask questions about courses, and get real-time context-aware answers.
+- **Saved Courses Library:** Users can now bookmark courses they are interested in, which appear in a dedicated "Saved" tab in their profile for easy access later.
+- **Enhanced UI/UX:** Transformed from a basic interface into a premium, state-of-the-art web application with refined typography, curated color palettes, and responsive layouts.
+
+---
 ## 2. Architecture
 
 ```
@@ -542,7 +553,7 @@ endpoint and the full dual-write lifecycle were exercised against a live Uvicorn
 
 <div align="center">
 
-**Built for the SmartReco Build Challenge 2026**
+**Built by AY Systum for the SmartReco Build Challenge 2026**
 
 Every LLM and embedding call routes through the Mesh API. No provider SDK is called directly.
 
