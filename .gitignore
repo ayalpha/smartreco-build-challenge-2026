@@ -1,0 +1,70 @@
+# ---- Secrets: NEVER commit -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# ---- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib60/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---- Virtual environments --------------------------------------------------
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# ---- Testing / coverage ----------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ---- Databases / local data ------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+smartreco.db
+qdrant_storage/
+postgres_data/
+redis_data/
+
+# ---- Logs ------------------------------------------------------------------
+*.log
+logs/
+
+# ---- Editors / OS ----------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,128 @@
+# ===========================================================================
+# SmartReco — local infrastructure + app.
+#
+# Bring up the three backing services and the API with one command:
+#
+#     docker compose up -d
+#
+# Or just the infrastructure, and run the app on the host with hot reload:
+#
+#     docker compose up -d postgres qdrant redis
+#     uvicorn app.main:app --reload
+#
+# Every service has a healthcheck, and the app waits for all three to report
+# healthy before starting — so the first request never races a cold database.
+# ===========================================================================
+
+name: smartreco
+
+services:
+
+  # ------------------------------------------------------------- PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartreco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartreco}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartreco}
+      POSTGRES_DB: ${POSTGRES_DB:-smartreco}
+      # Faster, deterministic index behaviour for a dev database.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartreco} -d ${POSTGRES_DB:-smartreco}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # ------------------------------------------------------------- Qdrant
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: smartreco-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"   # REST + dashboard at http://localhost:6333/dashboard
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__ENABLE_TLS: "false"
+      QDRANT__LOG_LEVEL: "INFO"
+    healthcheck:
+      # The Qdrant image is distroless-ish: no curl, but it does ship bash, so
+      # a /dev/tcp probe is the portable way to check readiness.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # ------------------------------------------------------------- Redis
+  redis:
+    image: redis:7-alpine
+    container_name: smartreco-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # ------------------------------------------------------------- Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smartreco-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      # Service names resolve inside the compose network, overriding any
+      # localhost values in .env.
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-smartreco}:${POSTGRES_PASSWORD:-smartreco}@postgres:5432/${POSTGRES_DB:-smartreco}
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Live-reload the app code in development.
+      - ./app:/srv/app
+      - ./scripts:/srv/scripts
+      - ./alembic:/srv/alembic
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m scripts.seed_products --demo-users --with-events &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)\""]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  redis_data:
+    driver: local

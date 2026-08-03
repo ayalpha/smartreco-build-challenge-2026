@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if product else 'New' }} course · Admin · {{ app_name }}{% endblock %}
+
+{% block content %}
+<nav class="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-600" aria-label="Breadcrumb">
+  <a href="/admin" class="transition hover:text-slate-400">Admin</a>
+  <span>/</span>
+  <span class="text-slate-500">{{ 'Edit course #' ~ product.id if product else 'New course' }}</span>
+</nav>
+
+<div class="mt-6 max-w-3xl">
+  <header>
+    <h1 class="text-3xl font-bold tracking-tight text-white">
+      {{ 'Edit course' if product else 'Add a course' }}
+    </h1>
+    <p class="mt-2 text-sm leading-relaxed text-slate-500">
+      Saving writes to PostgreSQL <em>and</em> upserts an embedded mirror into Qdrant in the
+      same request. Deactivating a course removes it from the retrievable index entirely.
+    </p>
+  </header>
+
+  <form method="post" action="{{ action }}" class="mt-8 space-y-6">
+
+    <!-- ============================== CONTENT ============================== -->
+    <fieldset class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+      <legend class="px-2 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Content</legend>
+
+      <div class="space-y-4">
+        <div>
+          <label for="title" class="block text-sm font-medium text-slate-300">Title <span class="text-rose-400">*</span></label>
+          <input id="title" name="title" type="text" required minlength="3" maxlength="240"
+                 value="{{ product.title if product else '' }}"
+                 placeholder="Building Production Agents with LangGraph"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+        </div>
+
+        <div>
+          <label for="description" class="block text-sm font-medium text-slate-300">Description</label>
+          <textarea id="description" name="description" rows="6" maxlength="8000"
+                    placeholder="What the learner will build, and what they will be able to do afterwards."
+                    class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm leading-relaxed text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">{{ product.description if product else '' }}</textarea>
+          <p class="mt-1.5 text-xs text-slate-600">
+            This text is embedded for semantic retrieval — concrete, specific descriptions
+            measurably improve recommendation quality.
+          </p>
+        </div>
+
+        <div>
+          <label for="tags" class="block text-sm font-medium text-slate-300">Tags</label>
+          <input id="tags" name="tags" type="text" maxlength="500"
+                 value="{{ product.tags if product else '' }}"
+                 placeholder="langgraph, agents, rag, python"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+          <p class="mt-1.5 text-xs text-slate-600">Comma-separated. Normalised to lower case and de-duplicated on save.</p>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- ============================ CLASSIFICATION ========================= -->
+    <fieldset class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+      <legend class="px-2 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Classification &amp; pricing</legend>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label for="category" class="block text-sm font-medium text-slate-300">Category <span class="text-rose-400">*</span></label>
+          <input id="category" name="category" type="text" required list="category-options" minlength="2" maxlength="80"
+                 value="{{ product.category if product else '' }}"
+                 placeholder="Agentic AI"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+          <datalist id="category-options">
+            {% for category in categories %}<option value="{{ category }}"></option>{% endfor %}
+          </datalist>
+        </div>
+
+        <div>
+          <label for="skill_level" class="block text-sm font-medium text-slate-300">Skill level</label>
+          <select id="skill_level" name="skill_level"
+                  class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-signal-500/60">
+            {% for level in skill_levels %}
+              <option value="{{ level }}" {{ 'selected' if product and product.skill_level == level else ('selected' if not product and level == 'beginner' else '') }}>
+                {{ level | capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="price" class="block text-sm font-medium text-slate-300">Price (USD)</label>
+          <input id="price" name="price" type="number" min="0" max="100000" step="0.01"
+                 value="{{ product.price if product else '0' }}"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-signal-500/60">
+        </div>
+
+        <div>
+          <label for="duration" class="block text-sm font-medium text-slate-300">Duration</label>
+          <input id="duration" name="duration" type="text" maxlength="64"
+                 value="{{ product.duration or '' if product else '' }}"
+                 placeholder="12 hours"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60">
+        </div>
+
+        <div>
+          <label for="instructor" class="block text-sm font-medium text-slate-300">Instructor</label>
+          <input id="instructor" name="instructor" type="text" maxlength="160"
+                 value="{{ product.instructor or '' if product else '' }}"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-signal-500/60">
+        </div>
+
+        <div>
+          <label for="rating" class="block text-sm font-medium text-slate-300">Rating (0–5)</label>
+          <input id="rating" name="rating" type="number" min="0" max="5" step="0.1"
+                 value="{{ product.rating if product and product.rating is not none else '' }}"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-signal-500/60">
+        </div>
+
+        <div class="sm:col-span-2">
+          <label for="thumbnail_url" class="block text-sm font-medium text-slate-300">Thumbnail URL</label>
+          <input id="thumbnail_url" name="thumbnail_url" type="url" maxlength="600"
+                 value="{{ product.thumbnail_url or '' if product else '' }}"
+                 placeholder="https://images.example.com/course.jpg"
+                 class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60">
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="flex items-start gap-3 rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-3">
+            <input type="checkbox" name="is_active" value="true"
+                   {{ 'checked' if (product and product.is_active) or not product else '' }}
+                   class="mt-0.5 h-4 w-4 rounded border-ink-600 bg-ink-900 text-signal-500 focus:ring-signal-500/40">
+            <span>
+              <span class="block text-sm font-medium text-slate-200">Active</span>
+              <span class="mt-0.5 block text-xs text-slate-500">
+                Inactive courses are hidden from the catalog and deleted from the vector index,
+                so the agent can never recommend them.
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="flex items-center gap-3">
+      <button type="submit"
+              class="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">
+        {{ 'Save changes' if product else 'Create course' }}
+      </button>
+      <a href="/admin" class="rounded-md border border-ink-600 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:border-ink-500 hover:text-white">Cancel</a>
+      {% if product %}
+        <span class="ml-auto font-mono text-[11px] text-slate-600">revision {{ product.revision }}</span>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

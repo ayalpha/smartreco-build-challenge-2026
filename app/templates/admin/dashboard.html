@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Admin · {{ app_name }}{% endblock %}
+
+{% block content %}
+<header class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-white">Admin</h1>
+    <p class="mt-1.5 text-sm text-slate-500">
+      Catalog management with strict SQL ⇄ Qdrant dual-write.
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2.5">
+    <form method="post" action="/admin/digest/run">
+      <button type="submit"
+              class="rounded-md border border-ink-600 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-ink-500 hover:text-white">
+        Run digest now
+      </button>
+    </form>
+    <form method="post" action="/admin/reindex">
+      <input type="hidden" name="reset" value="false">
+      <button type="submit"
+              class="rounded-md border border-ink-600 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-ink-500 hover:text-white">
+        Re-index catalog
+      </button>
+    </form>
+    <a href="/admin/products/new"
+       class="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">
+      + New course
+    </a>
+  </div>
+</header>
+
+<!-- ================================ STATS ================================= -->
+<dl class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+  {{ ui.stat('Courses', stats.products, stats.active_products ~ ' active') }}
+  {{ ui.stat('Users', stats.users) }}
+  {{ ui.stat('Events', stats.events) }}
+  {{ ui.stat('Recommendations', stats.recommendations, stats.active_recommendations ~ ' active') }}
+  {{ ui.stat('Vectors', stats.vector.vector_count, 'SQL: ' ~ stats.vector.sql_count) }}
+  {{ ui.stat('Degraded runs', stats.degraded_recommendations, 'ran without Mesh') }}
+</dl>
+
+<!-- ============================ SYSTEM STATUS ============================= -->
+<section class="mt-8 grid gap-4 lg:grid-cols-3">
+
+  <div class="rounded-xl border {{ 'border-signal-500/30 bg-signal-500/[0.04]' if stats.vector.in_sync else 'border-amber-500/40 bg-amber-500/[0.06]' }} p-5">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-white">Dual-write status</h2>
+      <span class="font-mono text-[10px] uppercase tracking-wider {{ 'text-signal-400' if stats.vector.in_sync else 'text-amber-300' }}">
+        {{ 'in sync' if stats.vector.in_sync else 'drift detected' }}
+      </span>
+    </div>
+    <dl class="mt-3 space-y-1.5 font-mono text-xs text-slate-400">
+      <div class="flex justify-between"><dt>SQL rows (active)</dt><dd class="text-slate-200">{{ stats.vector.sql_count }}</dd></div>
+      <div class="flex justify-between"><dt>Qdrant points</dt><dd class="text-slate-200">{{ stats.vector.vector_count }}</dd></div>
+      <div class="flex justify-between"><dt>Qdrant mode</dt><dd class="text-slate-200">{{ 'embedded (fallback)' if stats.vector_embedded_mode else 'server' }}</dd></div>
+    </dl>
+    {% if not stats.vector.in_sync %}
+      <p class="mt-3 text-xs leading-relaxed text-amber-300/90">
+        The vector mirror has drifted from SQL. Use “Re-index catalog” to repair it —
+        the operation is idempotent.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-white">Mesh API</h2>
+      <span class="font-mono text-[10px] uppercase tracking-wider {{ 'text-signal-400' if stats.mesh.configured else 'text-amber-300' }}">
+        {{ 'live' if stats.mesh.configured else 'not configured' }}
+      </span>
+    </div>
+    <dl class="mt-3 space-y-1.5 font-mono text-[11px] text-slate-400">
+      <div class="flex justify-between gap-3"><dt>base</dt><dd class="truncate text-slate-200">{{ stats.mesh.base_url }}</dd></div>
+      <div class="flex justify-between gap-3"><dt>reasoning</dt><dd class="truncate text-slate-200">{{ stats.mesh.reasoning }}</dd></div>
+      <div class="flex justify-between gap-3"><dt>writer</dt><dd class="truncate text-slate-200">{{ stats.mesh.writer }}</dd></div>
+      <div class="flex justify-between gap-3"><dt>grader</dt><dd class="truncate text-slate-200">{{ stats.mesh.grader }}</dd></div>
+      <div class="flex justify-between gap-3"><dt>embedding</dt><dd class="truncate text-slate-200">{{ stats.mesh.embedding }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-sm font-semibold text-white">Observability</h2>
+      <span class="font-mono text-[10px] uppercase tracking-wider {{ 'text-signal-400' if stats.langsmith.tracing_enabled else 'text-slate-500' }}">
+        {{ 'tracing on' if stats.langsmith.tracing_enabled else 'tracing off' }}
+      </span>
+    </div>
+    <dl class="mt-3 space-y-1.5 font-mono text-[11px] text-slate-400">
+      <div class="flex justify-between gap-3"><dt>project</dt><dd class="truncate text-slate-200">{{ stats.langsmith.project or '—' }}</dd></div>
+      <div class="flex justify-between gap-3"><dt>endpoint</dt><dd class="truncate text-slate-200">{{ stats.langsmith.endpoint or '—' }}</dd></div>
+    </dl>
+    {% if stats.event_breakdown %}
+      <div class="mt-4 border-t border-ink-800 pt-3">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-slate-600">Events by type</p>
+        <dl class="mt-2 space-y-1 font-mono text-[11px] text-slate-400">
+          {% for row in stats.event_breakdown[:6] %}
+            <div class="flex justify-between gap-3"><dt>{{ row.event_type }}</dt><dd class="text-slate-200">{{ row.count }}</dd></div>
+          {% endfor %}
+        </dl>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ============================ CATALOG TABLE ============================= -->
+<section class="mt-10">
+  <h2 class="text-xl font-bold tracking-tight text-white">Catalog</h2>
+
+  {% if products %}
+    <div class="mt-5 overflow-hidden rounded-xl border border-ink-700/70">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[54rem] text-left text-sm">
+          <thead class="bg-ink-850 font-mono text-[10px] uppercase tracking-wider text-slate-500">
+            <tr>
+              <th class="px-4 py-3 font-medium">ID</th>
+              <th class="px-4 py-3 font-medium">Title</th>
+              <th class="px-4 py-3 font-medium">Category</th>
+              <th class="px-4 py-3 font-medium">Level</th>
+              <th class="px-4 py-3 text-right font-medium">Price</th>
+              <th class="px-4 py-3 text-center font-medium">Rev</th>
+              <th class="px-4 py-3 text-center font-medium">Active</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-ink-800 bg-ink-900">
+            {% for product in products %}
+              <tr class="transition hover:bg-ink-850">
+                <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ product.id }}</td>
+                <td class="max-w-xs px-4 py-3">
+                  <a href="/product/{{ product.id }}" class="block truncate font-medium text-slate-200 transition hover:text-signal-400">{{ product.title }}</a>
+                </td>
+                <td class="px-4 py-3 text-slate-400">{{ product.category }}</td>
+                <td class="px-4 py-3">{{ ui.level_badge(product.skill_level) }}</td>
+                <td class="px-4 py-3 text-right font-mono text-xs text-slate-300">{{ product.price | money }}</td>
+                <td class="px-4 py-3 text-center font-mono text-xs text-slate-500">{{ product.revision }}</td>
+                <td class="px-4 py-3 text-center">
+                  {% if product.is_active %}
+                    <span class="text-signal-400" title="Active">●</span>
+                  {% else %}
+                    <span class="text-slate-600" title="Inactive">○</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-2">
+                    <a href="/admin/products/{{ product.id }}/edit"
+                       class="rounded border border-ink-600 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-ink-500 hover:text-white">Edit</a>
+                    <form method="post" action="/admin/products/{{ product.id }}/delete"
+                          data-confirm-delete="course #{{ product.id }}">
+                      <button type="submit"
+                              class="rounded border border-rose-500/40 px-2.5 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/10">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="mt-5">
+      {{ ui.empty_state(
+        'The catalog is empty',
+        'Seed it with 38 realistic courses: python -m scripts.seed_products',
+        '/admin/products/new', 'Add one manually') }}
+    </div>
+  {% endif %}
+</section>
+
+<!-- ======================= RECENT AGENT ACTIVITY ========================== -->
+{% if recent_recommendations %}
+<section class="mt-10">
+  <h2 class="text-xl font-bold tracking-tight text-white">Recent agent runs</h2>
+  <div class="mt-5 overflow-hidden rounded-xl border border-ink-700/70">
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[48rem] text-left text-sm">
+        <thead class="bg-ink-850 font-mono text-[10px] uppercase tracking-wider text-slate-500">
+          <tr>
+            <th class="px-4 py-3 font-medium">ID</th>
+            <th class="px-4 py-3 font-medium">User</th>
+            <th class="px-4 py-3 font-medium">Trigger</th>
+            <th class="px-4 py-3 font-medium">Headline</th>
+            <th class="px-4 py-3 text-center font-medium">Items</th>
+            <th class="px-4 py-3 text-right font-medium">Latency</th>
+            <th class="px-4 py-3 text-center font-medium">Mode</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ink-800 bg-ink-900">
+          {% for record in recent_recommendations %}
+            <tr class="transition hover:bg-ink-850">
+              <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ record.id }}</td>
+              <td class="px-4 py-3 font-mono text-xs text-slate-400">#{{ record.user_id }}</td>
+              <td class="px-4 py-3 font-mono text-xs text-slate-400">{{ record.trigger_reason }}</td>
+              <td class="max-w-xs px-4 py-3"><span class="block truncate text-slate-300">{{ record.headline or '—' }}</span></td>
+              <td class="px-4 py-3 text-center tabular-nums text-slate-300">{{ record.products | length }}</td>
+              <td class="px-4 py-3 text-right font-mono text-xs text-slate-400">{{ '%.0f' | format(record.latency_ms or 0) }} ms</td>
+              <td class="px-4 py-3 text-center">
+                {% if record.degraded %}
+                  <span class="font-mono text-[10px] uppercase text-amber-300">degraded</span>
+                {% else %}
+                  <span class="font-mono text-[10px] uppercase text-signal-400">full</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Confirmation for destructive catalog actions. Bound from a data attribute so
+  // course titles never have to be escaped into an inline handler.
+  document.querySelectorAll('form[data-confirm-delete]').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      const label = form.dataset.confirmDelete;
+      const message = 'Delete ' + label + ' from SQL and the vector store? This cannot be undone.';
+      if (!window.confirm(message)) event.preventDefault();
+    });
+  });
+</script>
+{% endblock %}

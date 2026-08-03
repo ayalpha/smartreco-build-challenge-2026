@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}How the agent works · {{ app_name }}{% endblock %}
+
+{% block content %}
+<header class="max-w-3xl">
+  <p class="font-mono text-[11px] uppercase tracking-[0.25em] text-signal-400">Architecture</p>
+  <h1 class="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-white">
+    How the recommendation agent works
+  </h1>
+  <p class="mt-5 text-[15px] leading-relaxed text-slate-400">
+    SmartReco is a seven-node LangGraph state machine. It reads behavioural events, extracts
+    the interests behind them, retrieves candidates with hybrid vector search, grades each one
+    with an LLM judge, loops back to broaden the search when the result set is thin, and only
+    then writes the recommendation. Every model call is routed through the Mesh API gateway.
+  </p>
+</header>
+
+<!-- ============================== NODE TABLE ============================== -->
+<section class="mt-12">
+  <h2 class="text-xl font-bold tracking-tight text-white">The seven nodes</h2>
+
+  <div class="mt-5 space-y-3">
+    {% set nodes = [
+      ('activity_analyzer', 'Behaviour → digest',
+       'Loads the last 60 events, renders them as a chronological log, and asks Mesh for a factual behavioural digest. Weights cart adds and long dwell times far above bare page views.',
+       'reasoning'),
+      ('interest_extractor', 'Digest → signals + query + filters',
+       'Produces 3–5 interest signals with confidence scores and supporting evidence, a rich natural-language retrieval query, and the metadata filters (skill band, price ceiling) the behaviour actually supports.',
+       'reasoning'),
+      ('retrieval_node', 'Hybrid search over Qdrant',
+       'Embeds the query via Mesh, runs a filtered cosine ANN search in Qdrant, runs an Okapi BM25 keyword ranking over the SQL catalog, and fuses the two rankings with reciprocal rank fusion.',
+       'embedding'),
+      ('relevance_grader', 'LLM-as-judge grading + re-ranking',
+       'Scores every candidate 0–1 with a one-line justification, then blends the judge score with the retrieval score (65/35) to produce the final ordering. Topical keyword overlap alone does not count as relevance.',
+       'grader'),
+      ('retrieval_refiner', 'Broaden and retry',
+       'Entered only via the conditional edge when fewer than three relevant candidates survive. Moves the query up a level of abstraction and can drop the price or skill filters, then loops back into retrieval.',
+       'reasoning'),
+      ('persuasion_writer', 'Evidence-grounded narrative',
+       'Writes the headline, the narrative and a pitch per course — instructed to reflect the observed behaviour back to the learner, and forbidden from inventing courses, prices or urgency.',
+       'writer'),
+      ('recommendation_storer', 'Persist and invalidate',
+       'Deactivates previous recommendations and inserts the new one in a single transaction, then invalidates the Redis result cache and clears the pending flag so the UI stops showing a skeleton.',
+       'none')
+    ] %}
+
+    {% for name, summary, detail, model_key in nodes %}
+      <article class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <div class="flex items-baseline gap-3">
+            <span class="grid h-6 w-6 shrink-0 place-items-center rounded bg-signal-500/15 font-mono text-[11px] font-bold text-signal-400">{{ loop.index }}</span>
+            <h3 class="font-mono text-sm font-semibold text-white">{{ name }}</h3>
+          </div>
+          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+            {% if model_key == 'none' %}no model call{% else %}{{ models.get(model_key, model_key) }}{% endif %}
+          </p>
+        </div>
+        <p class="mt-2 pl-9 text-sm font-medium text-slate-300">{{ summary }}</p>
+        <p class="mt-1.5 pl-9 text-[13px] leading-relaxed text-slate-500">{{ detail }}</p>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ============================= GRAPH DIAGRAM ============================ -->
+<section class="mt-12">
+  <h2 class="text-xl font-bold tracking-tight text-white">Graph topology</h2>
+  <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
+    One conditional edge, on <code class="font-mono text-slate-400">relevance_grader</code>: proceed to the
+    writer when at least {{ settings.agent_min_relevant_products }} relevant candidates survive; otherwise
+    refine and retry, up to {{ settings.agent_max_retrieval_retries }} times; if the budget runs out,
+    write a recommendation from what we have rather than returning nothing.
+  </p>
+
+  <div class="mt-5 overflow-x-auto rounded-xl border border-ink-700/70 bg-ink-950 p-5">
+    <pre class="font-mono text-[11px] leading-relaxed text-slate-400">{{ mermaid }}</pre>
+  </div>
+  <p class="mt-2 font-mono text-[11px] text-slate-600">
+    Mermaid definition, rendered live from the compiled graph. Machine-readable version:
+    <a href="/api/agent/graph" class="text-slate-500 underline decoration-ink-600 underline-offset-2 transition hover:text-slate-300">/api/agent/graph</a>
+  </p>
+</section>
+
+<!-- =============================== TRIGGERS =============================== -->
+<section class="mt-12 grid gap-4 lg:grid-cols-2">
+  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+    <h2 class="text-sm font-semibold text-white">When the agent runs</h2>
+    <p class="mt-2 text-[13px] leading-relaxed text-slate-500">
+      Running on every event would be wasteful; running once per session would go stale.
+      Three rules, checked in priority order:
+    </p>
+    <ol class="mt-4 space-y-2.5 text-[13px]">
+      {% set rules = [
+        ('first_time', 'The user has events but no recommendation yet.'),
+        ('event_threshold', settings.agent_event_trigger_interval ~ ' new events have accumulated since the last recommendation.'),
+        ('stale', 'The last recommendation is older than ' ~ settings.agent_stale_hours ~ 'h and at least ' ~ settings.agent_stale_min_events ~ ' new events exist.')
+      ] %}
+      {% for reason, detail in rules %}
+        <li class="flex gap-3">
+          <span class="mt-0.5 shrink-0 rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-signal-400">{{ reason }}</span>
+          <span class="text-slate-400">{{ detail }}</span>
+        </li>
+      {% endfor %}
+    </ol>
+    <p class="mt-4 text-xs leading-relaxed text-slate-600">
+      Dispatch is asynchronous: <code class="font-mono">POST /api/events</code> only evaluates two indexed
+      COUNT queries, then hands the run to APScheduler. A Redis <code class="font-mono">SET NX EX</code> lock
+      keyed by user id makes duplicate concurrent runs impossible.
+    </p>
+  </div>
+
+  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+    <h2 class="text-sm font-semibold text-white">Runtime status</h2>
+    <dl class="mt-3 space-y-1.5 font-mono text-[11px]">
+      {% for label, value in [
+          ('mesh gateway', models.base_url),
+          ('reasoning model', models.reasoning),
+          ('writer model', models.writer),
+          ('grader model', models.grader),
+          ('embedding model', models.embedding),
+          ('langsmith', ('on · ' ~ observability.project) if observability.tracing_enabled else 'off'),
+          ('scheduler', 'running' if scheduler.running else 'stopped')
+        ] %}
+        <div class="flex justify-between gap-4 border-b border-ink-800 pb-1.5">
+          <dt class="text-slate-500">{{ label }}</dt>
+          <dd class="truncate text-slate-300">{{ value }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+
+    {% if scheduler.jobs %}
+      <div class="mt-4">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-slate-600">Scheduled jobs</p>
+        <ul class="mt-2 space-y-1.5 font-mono text-[11px] text-slate-400">
+          {% for job in scheduler.jobs %}
+            <li class="flex justify-between gap-3">
+              <span class="truncate">{{ job.name }}</span>
+              <span class="shrink-0 text-slate-600">{{ job.next_run[:16] if job.next_run else '—' }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ============================ DEGRADED MODE ============================= -->
+<section class="mt-12 max-w-3xl">
+  <h2 class="text-xl font-bold tracking-tight text-white">Failure behaviour</h2>
+  <p class="mt-2 text-sm leading-relaxed text-slate-400">
+    A recommendation engine that returns a 500 is worse than one that returns a slightly weaker
+    answer. Every node catches its own exceptions, records them in the run trace, and falls back to
+    a deterministic heuristic — behavioural weighting for interests, lexical overlap for grading,
+    a templated narrative for copy. The run is flagged
+    <span class="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[11px] text-amber-300">degraded</span>
+    rather than lost, which is also what makes the whole pipeline runnable in CI with no API keys.
+    The same principle applies to infrastructure: an unreachable Qdrant falls back to an embedded
+    in-process index, and an unreachable Redis falls back to a process-local cache with identical
+    semantics.
+  </p>
+</section>
+{% endblock %}

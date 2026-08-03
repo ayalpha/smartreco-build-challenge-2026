@@ -1,0 +1,192 @@
+/* ==========================================================================
+   SmartReco — supplemental styles.
+
+   Tailwind (via CDN) does the layout work. This file holds only what Tailwind
+   utilities cannot express cleanly: keyframes, scrollbar theming, and a few
+   element defaults.
+   ========================================================================== */
+
+:root {
+  --ink-950: #080a0f;
+  --ink-900: #0d1117;
+  --ink-850: #12161f;
+  --ink-800: #171c27;
+  --ink-700: #222834;
+  --ink-600: #2f3746;
+  --signal-400: #4ade9a;
+  --signal-500: #22c98a;
+}
+
+/* --------------------------------------------------------------------------
+   Loading skeletons (shown while the agent is generating)
+   -------------------------------------------------------------------------- */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--ink-800);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.055) 45%,
+    rgba(255, 255, 255, 0.085) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.65s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Flash messages
+   -------------------------------------------------------------------------- */
+
+.flash-message {
+  animation: flash-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars — the default light scrollbar is jarring on a dark canvas
+   -------------------------------------------------------------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-600) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--ink-600);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #3d4759;
+}
+
+/* --------------------------------------------------------------------------
+   Element defaults
+   -------------------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Native date/number/select controls render with a light UI by default. */
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+/* Remove the browser's default search-cancel button, which is unstyleable. */
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Hide the default triangle on <details><summary> — the templates supply their own. */
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary {
+  outline-offset: 4px;
+}
+
+/* Line clamping for card descriptions (Tailwind's plugin is not loaded via CDN). */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Tabular numerals keep dashboard counters from shifting as they update. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard focus ring, consistent across the app. */
+:focus-visible {
+  outline: 2px solid var(--signal-500);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Accessibility: honour a user's reduced-motion preference
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Print: strip chrome so a recommendation can be printed or saved as PDF
+   -------------------------------------------------------------------------- */
+
+@media print {
+  header,
+  footer,
+  nav,
+  button,
+  #reco-refresh {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}

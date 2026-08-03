@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md py-10">
+  <div class="rounded-2xl border border-ink-700/70 bg-ink-900 p-7 sm:p-8">
+    <h1 class="text-2xl font-bold tracking-tight text-white">Sign in</h1>
+    <p class="mt-2 text-sm text-slate-500">Pick up where your recommendations left off.</p>
+
+    <form method="post" action="/login" class="mt-7 space-y-4">
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-slate-300">Email</label>
+        <input id="email" name="email" type="email" required autocomplete="email" autofocus
+               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30"
+               placeholder="you@example.com">
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password"
+               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30"
+               placeholder="••••••••">
+      </div>
+
+      <button type="submit"
+              class="w-full rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">
+        Sign in
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-sm text-slate-500">
+      No account yet?
+      <a href="/register" class="font-semibold text-signal-400 transition hover:text-signal-300">Create one</a>
+    </p>
+  </div>
+
+  <p class="mt-5 rounded-lg border border-ink-700/70 bg-ink-900/50 px-4 py-3 text-center text-xs leading-relaxed text-slate-600">
+    Seeded demo accounts (created by <code class="font-mono text-slate-500">scripts/seed_products.py --demo-users</code>):
+    <span class="font-mono text-slate-400">admin@smartreco.ai</span> /
+    <span class="font-mono text-slate-400">learner@smartreco.ai</span>
+    — password <span class="font-mono text-slate-400">smartreco123</span>
+  </p>
+</div>
+{% endblock %}

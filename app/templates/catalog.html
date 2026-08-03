@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Catalog · {{ app_name }}{% endblock %}
+
+{# Tells tracker.js to emit a search_query event with the real result count. #}
+{% block tracking_meta %}
+  {% if filters.q %}
+    <meta name="smartreco-search-query" content="{{ filters.q }}">
+    <meta name="smartreco-search-results" content="{{ total }}">
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<header class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-white">Course catalog</h1>
+    <p class="mt-1.5 text-sm text-slate-500">
+      {{ total }} course{{ '' if total == 1 else 's' }}
+      {% if filters.q %}matching “{{ filters.q }}”{% endif %}
+      {% if filters.category %}in {{ filters.category }}{% endif %}
+    </p>
+  </div>
+  {% if current_user %}
+    <p class="rounded-lg border border-ink-700/70 bg-ink-900 px-3.5 py-2 text-xs text-slate-500">
+      Every click and search here feeds the agent.
+      <a href="/" class="ml-1 font-semibold text-signal-400 transition hover:text-signal-300">See your picks →</a>
+    </p>
+  {% endif %}
+</header>
+
+<!-- ================================ FILTERS =============================== -->
+<form method="get" action="/catalog" class="mt-8 rounded-xl border border-ink-700/70 bg-ink-900 p-4">
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="lg:col-span-2">
+      <label for="q" class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Search</label>
+      <input id="q" type="search" name="q" value="{{ filters.q }}" placeholder="e.g. langgraph agents, dbt, pytorch"
+             class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+    </div>
+
+    <div>
+      <label for="category" class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Category</label>
+      <select id="category" name="category"
+              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-signal-500/60">
+        <option value="">All categories</option>
+        {% for category in categories %}
+          <option value="{{ category }}" {{ 'selected' if filters.category == category else '' }}>{{ category }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="skill_level" class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Level</label>
+      <select id="skill_level" name="skill_level"
+              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-signal-500/60">
+        <option value="">Any level</option>
+        {% for level in skill_levels %}
+          <option value="{{ level }}" {{ 'selected' if filters.skill_level == level else '' }}>{{ level | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="max_price" class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Max price</label>
+      <input id="max_price" type="number" name="max_price" min="0" step="1"
+             value="{{ filters.max_price if filters.max_price is not none else '' }}" placeholder="any"
+             class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none transition focus:border-signal-500/60">
+    </div>
+  </div>
+
+  <div class="mt-4 flex items-center gap-2.5">
+    <button type="submit" class="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">Apply filters</button>
+    <a href="/catalog" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-ink-500 hover:text-white">Reset</a>
+  </div>
+</form>
+
+<!-- ================================= GRID ================================= -->
+{% if products %}
+  <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for product in products %}
+      {{ ui.product_card(product, source=('search' if filters.q else 'catalog')) }}
+    {% endfor %}
+  </div>
+
+  {% if pages > 1 %}
+    {% set qs = [] %}
+    {% if filters.q %}{% set _ = qs.append('q=' ~ (filters.q | urlencode)) %}{% endif %}
+    {% if filters.category %}{% set _ = qs.append('category=' ~ (filters.category | urlencode)) %}{% endif %}
+    {% if filters.skill_level %}{% set _ = qs.append('skill_level=' ~ filters.skill_level) %}{% endif %}
+    {% if filters.max_price is not none %}{% set _ = qs.append('max_price=' ~ filters.max_price) %}{% endif %}
+    {% set base_qs = ('&' ~ qs | join('&')) if qs else '' %}
+
+    <nav class="mt-10 flex items-center justify-center gap-1.5" aria-label="Pagination">
+      {% if page > 1 %}
+        <a href="/catalog?page={{ page - 1 }}{{ base_qs }}"
+           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-ink-500 hover:text-white">← Prev</a>
+      {% endif %}
+
+      {% for number in range(1, pages + 1) %}
+        {% if number == 1 or number == pages or (number >= page - 1 and number <= page + 1) %}
+          <a href="/catalog?page={{ number }}{{ base_qs }}"
+             class="min-w-[2.25rem] rounded-md px-3 py-1.5 text-center text-sm transition
+                    {% if number == page %}bg-signal-500 font-semibold text-ink-950{% else %}border border-ink-700 text-slate-300 hover:border-ink-500 hover:text-white{% endif %}">
+            {{ number }}
+          </a>
+        {% elif number == page - 2 or number == page + 2 %}
+          <span class="px-1 text-slate-600">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if page < pages %}
+        <a href="/catalog?page={{ page + 1 }}{{ base_qs }}"
+           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-ink-500 hover:text-white">Next →</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+{% else %}
+  <div class="mt-8">
+    {{ ui.empty_state(
+      'No courses match those filters',
+      'Try a broader search term, clear the level or price constraint, or reset the filters entirely.',
+      '/catalog', 'Reset filters') }}
+  </div>
+{% endif %}
+
+{% endblock %}

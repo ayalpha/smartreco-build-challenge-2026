@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# SmartReco — Behavioral AI Recommendation Agent
+# Python 3.11+
+#
+# NOTE: Every LLM / embedding call in this project is routed through the
+# Mesh API gateway (https://api.meshapi.ai/v1). The `openai` package below is
+# used purely as a *transport* (OpenAI-compatible HTTP client) pointed at Mesh
+# via `base_url`. There are no direct provider SDK calls anywhere in this repo.
+# ---------------------------------------------------------------------------
+
+# --- Web framework -------------------------------------------------------
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+jinja2>=3.1.3
+itsdangerous>=2.1.2
+
+# --- Data validation / settings -----------------------------------------
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+email-validator>=2.1.0
+
+# --- Database ------------------------------------------------------------
+sqlalchemy>=2.0.25
+alembic>=1.13.1
+psycopg2-binary>=2.9.9
+
+# --- Vector database -----------------------------------------------------
+qdrant-client>=1.8.0
+
+# --- LLM / AI (ALL traffic via Mesh API) ---------------------------------
+openai>=1.13.0            # OpenAI-compatible client, base_url -> Mesh
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-core>=0.2.0
+langsmith>=0.1.100
+
+# --- Scheduling ----------------------------------------------------------
+apscheduler>=3.10.4
+
+# --- Email delivery ------------------------------------------------------
+sendgrid>=6.11.0
+
+# --- Cache / trigger locks ----------------------------------------------
+redis>=5.0.1
+
+# --- HTTP client (Telegram delivery, health probes) ----------------------
+httpx>=0.26.0
+
+# --- Auth ----------------------------------------------------------------
+python-jose[cryptography]>=3.3.0
+# NOTE: `app.security` calls `bcrypt` directly rather than through passlib.
+# passlib 1.7.4 is unmaintained and its bcrypt backend probes the library with an
+# 80-byte secret, which bcrypt >= 4.1 rejects, so `passlib.hash.bcrypt` raises on
+# backend detection. The stored hash format is unchanged (modular-crypt bcrypt).
+# passlib is retained here only for compatibility with tooling that expects it.
+bcrypt>=4.1.0
+passlib[bcrypt]>=1.7.4
+
+# --- Config --------------------------------------------------------------
+python-dotenv>=1.0.1
+
+# --- Testing -------------------------------------------------------------
+pytest>=8.0.0
+pytest-asyncio>=0.23.5

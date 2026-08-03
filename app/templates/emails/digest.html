@@ -1,0 +1,191 @@
+{# ---------------------------------------------------------------------------
+  Daily digest email (BONUS 2).
+
+  Email clients are a hostile rendering target, so this template deliberately
+  ignores the app's Tailwind stack and uses the rules that actually work
+  everywhere: table-based layout, inline styles, web-safe font stacks, no
+  flexbox, no external CSS.
+--------------------------------------------------------------------------- #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{{ recommendation.headline or (app_name ~ ' picks') }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#0d1117; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased;">
+
+  <!-- Preheader: shown in the inbox preview, hidden in the body. -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+    {{ (recommendation.narrative or '')[:110] }}
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0d1117; padding:32px 12px;">
+    <tr>
+      <td align="center">
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background-color:#171c27; border:1px solid #2f3746; border-radius:14px; overflow:hidden;">
+
+          <!-- ============================ HEADER ============================ -->
+          <tr>
+            <td style="padding:26px 30px 20px 30px; border-bottom:1px solid #2f3746;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-size:15px; font-weight:700; color:#ffffff; letter-spacing:-0.01em;">
+                    <span style="color:#22c98a;">&#9672;</span>&nbsp;{{ app_name }}
+                  </td>
+                  <td align="right" style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#64748b; font-family:'SFMono-Regular',Consolas,monospace;">
+                    Daily digest
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- =========================== NARRATIVE ========================== -->
+          <tr>
+            <td style="padding:30px;">
+              <p style="margin:0 0 18px 0; font-size:14px; color:#94a3b8;">Hi {{ user_name }},</p>
+
+              <h1 style="margin:0 0 14px 0; font-size:23px; line-height:1.25; font-weight:800; color:#ffffff; letter-spacing:-0.02em;">
+                {{ recommendation.headline or 'Your picks for today' }}
+              </h1>
+
+              <p style="margin:0; font-size:14.5px; line-height:1.65; color:#cbd5e1;">
+                {{ recommendation.narrative }}
+              </p>
+            </td>
+          </tr>
+
+          <!-- ============================ SIGNALS =========================== -->
+          {% if signals %}
+          <tr>
+            <td style="padding:0 30px 26px 30px;">
+              <p style="margin:0 0 10px 0; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#64748b; font-family:'SFMono-Regular',Consolas,monospace;">
+                Why these, specifically
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#12161f; border:1px solid #222834; border-radius:10px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    {% for signal in signals %}
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                             style="{{ 'margin-top:12px;' if not loop.first else '' }}">
+                        <tr>
+                          <td style="font-size:13px; font-weight:600; color:#e2e8f0; text-transform:capitalize;">
+                            {{ signal.topic }}
+                          </td>
+                          <td align="right" style="font-size:11px; color:#22c98a; font-family:'SFMono-Regular',Consolas,monospace;">
+                            {{ '%.0f' | format((signal.confidence | float) * 100) }}%
+                          </td>
+                        </tr>
+                        {% if signal.evidence %}
+                        <tr>
+                          <td colspan="2" style="padding-top:3px; font-size:12.5px; line-height:1.5; color:#8a97a8;">
+                            {{ signal.evidence }}
+                          </td>
+                        </tr>
+                        {% endif %}
+                      </table>
+                    {% endfor %}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endif %}
+
+          <!-- =========================== PRODUCTS =========================== -->
+          <tr>
+            <td style="padding:0 30px 8px 30px;">
+              <p style="margin:0 0 12px 0; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#64748b; font-family:'SFMono-Regular',Consolas,monospace;">
+                Recommended for you
+              </p>
+            </td>
+          </tr>
+
+          {% for product in products %}
+          <tr>
+            <td style="padding:0 30px 14px 30px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background-color:#12161f; border:1px solid #222834; border-radius:10px;">
+                <tr>
+                  <td style="padding:16px 18px;">
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#22c98a; font-family:'SFMono-Regular',Consolas,monospace;">
+                          {{ product.category }}
+                        </td>
+                        <td align="right" style="font-size:10px; text-transform:uppercase; color:#64748b; font-family:'SFMono-Regular',Consolas,monospace;">
+                          {{ product.skill_level }}
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:8px 0 0 0; font-size:16px; line-height:1.35; font-weight:700;">
+                      <a href="{{ base_url }}/product/{{ product.id }}"
+                         style="color:#ffffff; text-decoration:none;">{{ product.title }}</a>
+                    </p>
+
+                    {% if product.pitch or product.reason %}
+                      <p style="margin:8px 0 0 0; padding-left:11px; border-left:2px solid #12a16c; font-size:13px; line-height:1.55; font-style:italic; color:#a7f3cf;">
+                        {{ product.pitch or product.reason }}
+                      </p>
+                    {% endif %}
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;">
+                      <tr>
+                        <td style="font-size:16px; font-weight:700; color:#ffffff;">
+                          {{ product.price | money }}
+                          {% if product.duration %}
+                            <span style="font-size:11px; font-weight:400; color:#64748b;">&nbsp;·&nbsp;{{ product.duration }}</span>
+                          {% endif %}
+                        </td>
+                        <td align="right">
+                          <a href="{{ base_url }}/product/{{ product.id }}"
+                             style="display:inline-block; padding:8px 16px; background-color:#22c98a; color:#080a0f; font-size:12.5px; font-weight:700; text-decoration:none; border-radius:6px;">
+                            View course
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endfor %}
+
+          <!-- ============================= CTA ============================== -->
+          <tr>
+            <td align="center" style="padding:18px 30px 30px 30px;">
+              <a href="{{ base_url }}/"
+                 style="display:inline-block; padding:11px 22px; border:1px solid #2f3746; color:#cbd5e1; font-size:13px; font-weight:600; text-decoration:none; border-radius:7px;">
+                See your full panel &rarr;
+              </a>
+            </td>
+          </tr>
+
+          <!-- ============================ FOOTER ============================ -->
+          <tr>
+            <td style="padding:20px 30px 26px 30px; border-top:1px solid #2f3746;">
+              <p style="margin:0; font-size:11.5px; line-height:1.6; color:#64748b;">
+                You're receiving this because you have digest delivery switched on and were
+                active on {{ app_name }} today. Manage it from
+                <a href="{{ base_url }}/profile" style="color:#8a97a8;">your profile</a>.
+              </p>
+              <p style="margin:8px 0 0 0; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#475569; font-family:'SFMono-Regular',Consolas,monospace;">
+                Written by the {{ app_name }} recommendation agent
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

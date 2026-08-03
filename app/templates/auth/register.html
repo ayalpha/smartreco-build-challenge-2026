@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Create an account · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md py-10">
+  <div class="rounded-2xl border border-ink-700/70 bg-ink-900 p-7 sm:p-8">
+    <h1 class="text-2xl font-bold tracking-tight text-white">Create your account</h1>
+    <p class="mt-2 text-sm text-slate-500">
+      The agent starts learning from your very first click.
+    </p>
+
+    <form method="post" action="/register" class="mt-7 space-y-4">
+      <div>
+        <label for="full_name" class="block text-sm font-medium text-slate-300">
+          Name <span class="text-slate-600">(optional)</span>
+        </label>
+        <input id="full_name" name="full_name" type="text" autocomplete="name" maxlength="160"
+               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30"
+               placeholder="Ada Lovelace">
+      </div>
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-slate-300">Email</label>
+        <input id="email" name="email" type="email" required autocomplete="email"
+               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30"
+               placeholder="you@example.com">
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+        <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"
+               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30"
+               placeholder="At least 8 characters">
+        <p class="mt-1.5 text-xs text-slate-600">Minimum 8 characters. Hashed with bcrypt (12 rounds) — never stored in plaintext.</p>
+      </div>
+
+      <button type="submit"
+              class="w-full rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">
+        Create account
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-sm text-slate-500">
+      Already registered?
+      <a href="/login" class="font-semibold text-signal-400 transition hover:text-signal-300">Sign in</a>
+    </p>
+  </div>
+
+  <p class="mt-5 text-center text-xs leading-relaxed text-slate-600">
+    The first account created on a fresh deployment is promoted to admin automatically,
+    so you can manage the catalog without a separate CLI step.
+  </p>
+</div>
+{% endblock %}
