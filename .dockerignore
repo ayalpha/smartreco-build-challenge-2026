@@ -1,0 +1,57 @@
+# Keep the build context small and secret-free. Anything listed here never
+# reaches the Docker daemon, so it cannot end up in an image layer.
+
+# ---- Secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- VCS / CI --------------------------------------------------------------
+.git
+.gitignore
+.github
+
+# ---- Python bytecode / build artefacts ------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# ---- Virtual environments --------------------------------------------------
+.venv/
+venv/
+ENV/
+env/
+
+# ---- Tests / tooling caches (not needed at runtime) ------------------------
+tests/
+pytest.ini
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ---- Local data ------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+qdrant_storage/
+postgres_data/
+redis_data/
+
+# ---- Docs / local compose --------------------------------------------------
+README.md
+DEPLOY.md
+docker-compose.yml
+
+# ---- Editors / OS ----------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+*.swp

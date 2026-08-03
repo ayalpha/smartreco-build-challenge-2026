@@ -139,6 +139,34 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalise_database_url(cls, value: Any) -> Any:
+        """Pin an explicit SQLAlchemy driver onto PostgreSQL DSNs.
+
+        Managed platforms hand out a bare DSN whose scheme SQLAlchemy 2.0 either
+        rejects or resolves ambiguously:
+
+        * Heroku-style providers emit ``postgres://``, which SQLAlchemy 2.0
+          removed support for entirely — it raises ``NoSuchModuleError`` at
+          engine creation, so the app would not boot at all.
+        * Railway, Render and friends emit ``postgresql://``, which works but
+          leaves the DBAPI implicit.
+
+        Both are rewritten to ``postgresql+psycopg2://`` so the driver is
+        unambiguous and injected DSNs work untouched. SQLite and any DSN that
+        already names a driver are passed through unchanged.
+        """
+        if not isinstance(value, str):
+            return value
+
+        dsn = value.strip()
+        if dsn.startswith("postgres://"):
+            return "postgresql+psycopg2://" + dsn[len("postgres://"):]
+        if dsn.startswith("postgresql://"):
+            return "postgresql+psycopg2://" + dsn[len("postgresql://"):]
+        return dsn
+
     # -------------------------------------------------------- derived props
     @property
     def is_sqlite(self) -> bool:
