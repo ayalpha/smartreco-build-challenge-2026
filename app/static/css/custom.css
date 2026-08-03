@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SmartReco — supplemental styles.
+   Nexora — supplemental styles (built by AY Systum).
 
    Tailwind (via CDN) does the layout work. This file holds the design-system
    layer Tailwind utilities cannot express cleanly: tokens, keyframes, the
@@ -221,6 +221,19 @@ a:hover .card-cover::after {
   text-shadow: 0 0 32px rgba(255, 255, 255, 0.25);
 }
 
+/* Generated cover art: a slow scale on hover reads as "alive" without motion
+   sickness, and keeps the card feeling like a product surface rather than a
+   static tile. */
+.card-cover-img {
+  transform: scale(1.005);
+  transition: transform 0.5s var(--ease-enter), opacity 0.3s var(--ease-standard);
+}
+
+article:hover .card-cover-img,
+a:hover .card-cover-img {
+  transform: scale(1.045);
+}
+
 .cover-agentic-ai        { --c1: #123b2e; --c2: #05070c; }
 .cover-machine-learning  { --c1: #12294a; --c2: #05070c; }
 .cover-deep-learning     { --c1: #2c1b4d; --c2: #05070c; }
@@ -279,6 +292,127 @@ a:hover .card-cover::after {
   width: 2px;
   background: linear-gradient(180deg, var(--iris), var(--signal));
   opacity: 0.35;
+}
+
+/* --------------------------------------------------------------------------
+   Nexora Assistant — floating personalised chat
+   -------------------------------------------------------------------------- */
+
+.assistant-panel {
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+  transform-origin: bottom right;
+  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter);
+}
+
+.assistant-panel.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.assistant-msg {
+  display: flex;
+  animation: reveal-rise 0.28s var(--ease-reveal) both;
+}
+
+.assistant-msg--user {
+  justify-content: flex-end;
+}
+
+.assistant-msg--bot {
+  justify-content: flex-start;
+}
+
+.assistant-bubble {
+  max-width: 85%;
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.assistant-bubble--user {
+  background: rgba(34, 201, 138, 0.14);
+  border: 1px solid rgba(34, 201, 138, 0.28);
+  color: #eafaf3;
+  border-bottom-right-radius: 4px;
+}
+
+.assistant-bubble--bot {
+  background: #0f141f;
+  border: 1px solid #1e2637;
+  color: #c7d0dc;
+  border-bottom-left-radius: 4px;
+}
+
+.assistant-bubble--error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #fecaca;
+}
+
+/* Typing indicator — three dots, staggered */
+.assistant-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 20px;
+}
+
+.assistant-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--iris-bright);
+  animation: typing-bounce 1.15s ease-in-out infinite;
+}
+
+.assistant-typing span:nth-child(2) { animation-delay: 0.16s; }
+.assistant-typing span:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-4px); }
+}
+
+/* --------------------------------------------------------------------------
+   Saved items — button states, badge pop, save burst
+   -------------------------------------------------------------------------- */
+
+.save-btn.is-saved {
+  border-color: rgba(34, 201, 138, 0.5);
+  background: rgba(34, 201, 138, 0.12);
+  color: var(--signal-bright);
+}
+
+.save-btn.is-saved svg path {
+  fill: currentColor;
+}
+
+.save-btn--wide.is-saved {
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+  border: 1px solid rgba(34, 201, 138, 0.5);
+}
+
+.save-burst {
+  animation: save-burst-anim 0.42s var(--ease-reveal);
+}
+
+@keyframes save-burst-anim {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.saved-pop {
+  animation: saved-pop-anim 0.36s var(--ease-reveal);
+}
+
+@keyframes saved-pop-anim {
+  0%   { transform: scale(0.6); opacity: 0.4; }
+  55%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); }
 }
 
 /* --------------------------------------------------------------------------
@@ -384,8 +518,23 @@ summary {
     opacity: 1;
   }
 
-  .pipe-chip.is-active {
+  .pipe-chip.is-active,
+  .assistant-typing span,
+  .save-burst,
+  .saved-pop {
     animation: none;
+  }
+
+  .assistant-panel {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .card-cover-img,
+  article:hover .card-cover-img,
+  a:hover .card-cover-img {
+    transform: none;
   }
 }
 

@@ -12,7 +12,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <meta name="description" content="{% block description %}SmartReco — a behavioural AI agent that watches, understands and persuades.{% endblock %}">
+  <meta name="description" content="{% block description %}Nexora — a behavioural AI agent that watches how you learn, then argues for what is next. Built by AY Systum for the SmartReco Build Challenge 2026.{% endblock %}">
+  <meta property="og:site_name" content="Nexora">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="A behavioural AI recommendation agent — seven-node LangGraph pipeline, hybrid retrieval, every model call through Mesh. Built by AY Systum for the SmartReco Build Challenge 2026.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#05070C">
+  <meta name="author" content="AY Systum">
 
   {# Tracking context consumed by static/js/tracker.js #}
   <meta name="smartreco-authenticated" content="{{ 'true' if current_user else 'false' }}">
@@ -70,7 +77,10 @@
         <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-signal-400"
               title="agent online" aria-hidden="true"></span>
       </span>
-      <span class="text-[15px] font-bold tracking-tight text-white">{{ app_name }}</span>
+      <span class="flex flex-col leading-none">
+        <span class="text-[15px] font-bold tracking-tight text-white">{{ app_name }}</span>
+        <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.18em] text-mist-500 sm:block">by ay systum</span>
+      </span>
     </a>
 
     {% set nav_items = [('/', 'For You'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
@@ -99,6 +109,17 @@
                value="{{ filters.q if filters is defined else '' }}"
                class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
       </form>
+
+      <a href="/saved" id="saved-nav" aria-label="Saved courses"
+         class="relative grid h-9 w-9 place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-300 transition hover:border-signal-500/50 hover:text-signal-300">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
+                stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+        <span id="saved-count"
+              class="absolute -right-1.5 -top-1.5 hidden min-w-[18px] rounded-full bg-signal-500 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-ink-950"
+              aria-live="polite">0</span>
+      </a>
 
       {% if current_user %}
         <a href="/profile" class="flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-mist-200 transition hover:border-ink-600 hover:text-white sm:px-3">
@@ -141,6 +162,7 @@
               <a href="/admin" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Admin</a>
             {% endif %}
             <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
               <a href="/profile" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Profile</a>
               <form action="/logout" method="post">
                 <button type="submit" class="block w-full rounded-md px-3.5 py-3 text-left text-sm font-medium text-mist-400 transition hover:bg-ink-850 hover:text-white">Sign out</button>
@@ -148,6 +170,7 @@
             </div>
           {% else %}
             <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
               <a href="/login" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Sign in</a>
             </div>
           {% endif %}
@@ -189,7 +212,7 @@
       <span class="text-signal-400">◈</span> {{ app_name }}
     </p>
     <p class="font-mono text-[11px] lowercase text-mist-500">
-      seven-node langgraph agent · every model call via mesh
+      built by ay systum · every model call via mesh api
     </p>
   </div>
 </footer>
@@ -205,6 +228,13 @@
           A behavioural recommendation agent built on a seven-node LangGraph state machine
           with hybrid dense ⊕ BM25 retrieval. Every model call is routed through the Mesh API.
         </p>
+        <p class="mt-4 text-sm text-mist-400">
+          Built by <span class="font-semibold text-mist-200">AY Systum</span>
+        </p>
+        <p class="mt-1 font-mono text-[11px] lowercase leading-relaxed text-mist-500">
+          created for the smartreco build challenge 2026 ·
+          <span class="text-signal-400/80">powered by mesh api</span>
+        </p>
       </div>
 
       <dl class="grid grid-cols-2 gap-x-10 gap-y-3 text-sm sm:grid-cols-3">
@@ -212,6 +242,7 @@
           <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">Agent</dt>
           <dd class="mt-1 space-y-1 text-mist-400">
             <a class="block transition hover:text-mist-50" href="/architecture">Architecture</a>
+            <a class="block transition hover:text-mist-50" href="/saved">Saved courses</a>
             <a class="block transition hover:text-mist-50" href="/api/agent/graph">Graph JSON</a>
           </dd>
         </div>
@@ -236,7 +267,10 @@
 </footer>
 {% endif %}
 
+{% include "_assistant.html" %}
+
 <script src="/static/js/tracker.js" defer></script>
+<script src="/static/js/saved.js" defer></script>
 <script>
   // Flash auto-dismiss: fade out after 6s, pause the timer while hovered.
   (function () {

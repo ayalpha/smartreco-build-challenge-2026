@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------ app
-    app_name: str = "SmartReco"
+    app_name: str = "Nexora"
     environment: Literal["development", "staging", "production", "test"] = "development"
     debug: bool = True
     log_level: str = "INFO"
@@ -97,8 +97,8 @@ class Settings(BaseSettings):
     email_enabled: bool = True
     email_backend: Literal["console", "sendgrid", "smtp"] = "console"
     sendgrid_api_key: Optional[str] = None
-    digest_from_email: str = "noreply@smartreco.ai"
-    digest_from_name: str = "SmartReco"
+    digest_from_email: str = "noreply@nexora.ai"
+    digest_from_name: str = "Nexora"
     digest_schedule_hour: int = Field(default=18, ge=0, le=23)
     digest_schedule_minute: int = Field(default=0, ge=0, le=59)
     digest_min_events_today: int = 5

@@ -24,16 +24,31 @@
 {% endmacro %}
 
 
-{% macro thumbnail(item, height='h-36') %}
+{% macro thumbnail(item, height='h-36', eager=false) %}
+  {# Generated first-party cover art (committed to /static/img/courses). The CSS
+     gradient cover remains as a graceful fallback for any row without one. #}
   {% set category = item.category if item is not mapping else item.get('category') %}
+  {% set title = item.title if item is not mapping else item.get('title') %}
+  {% set cover = item.thumbnail_url if item is not mapping else item.get('thumbnail_url') %}
   {% set glyphs = {
     'Agentic AI': '◈', 'Machine Learning': '∿', 'Deep Learning': '▲',
     'Data Engineering': '☰', 'Python': '⌘', 'JavaScript': '{ }',
     'Web Development': '⌗', 'DevOps': '⟲', 'Cloud': '☁', 'Career Skills': '✎'
   } %}
-  <div class="card-cover cover-{{ (category or 'course') | lower | replace(' ', '-') }} relative grid {{ height }} w-full place-items-center overflow-hidden rounded-t-[10px]">
-    <span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">{{ glyphs.get(category, '◇') }}</span>
-    <span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/60">{{ category }}</span>
+  <div class="card-cover cover-{{ (category or 'course') | lower | replace(' ', '-') }} relative {{ height }} w-full overflow-hidden rounded-t-[10px]">
+    {% if cover %}
+      <img src="{{ cover }}"
+           alt="Abstract cover artwork for {{ title }}, a {{ category }} course"
+           {% if eager %}loading="eager" fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %}
+           width="800" height="447"
+           class="card-cover-img h-full w-full object-cover">
+    {% else %}
+      <span class="absolute inset-0 grid place-items-center">
+        <span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">{{ glyphs.get(category, '◇') }}</span>
+      </span>
+    {% endif %}
+    <span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/10 to-transparent"></span>
+    <span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/75">{{ category }}</span>
   </div>
 {% endmacro %}
 
@@ -92,14 +107,28 @@
             {% if score is not none %}<span title="agent relevance score">rel {{ '%.2f' | format(score|float) }}</span>{% endif %}
           </p>
         </div>
-        <a href="/product/{{ pid }}"
-           class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
-           aria-label="View {{ title }}"
-           data-track-click="{{ pid }}"
-           data-track-source="{{ source }}"
-           {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
-          →
-        </a>
+        <div class="flex shrink-0 items-center gap-1.5">
+          <button type="button"
+                  data-save-product="{{ pid }}"
+                  data-save-title="{{ title }}"
+                  data-save-state="unsaved"
+                  aria-pressed="false"
+                  aria-label="Save {{ title }} for later"
+                  class="save-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
+                    stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <a href="/product/{{ pid }}"
+             class="grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
+             aria-label="View {{ title }}"
+             data-track-click="{{ pid }}"
+             data-track-source="{{ source }}"
+             {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+            →
+          </a>
+        </div>
       </div>
     </div>
   </article>

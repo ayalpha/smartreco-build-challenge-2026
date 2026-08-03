@@ -9,7 +9,7 @@
     How the recommendation agent works
   </h1>
   <p class="mt-5 text-[15px] leading-relaxed text-mist-400">
-    SmartReco is a seven-node LangGraph state machine. It reads behavioural events, extracts
+    Nexora is a seven-node LangGraph state machine. It reads behavioural events, extracts
     the interests behind them, retrieves candidates with hybrid vector search, grades each one
     with an LLM judge, loops back to broaden the search when the result set is thin, and only
     then writes the recommendation. Every model call is routed through the Mesh API gateway.
@@ -160,4 +160,29 @@
     semantics.
   </p>
 </section>
+<!-- =============================== ABOUT ================================== -->
+<section class="mt-12 max-w-3xl rounded-2xl border border-ink-700/70 bg-ink-900 p-6">
+  <p class="font-mono text-[10px] lowercase tracking-[0.2em] text-iris-400">about this build</p>
+  <h2 class="mt-3 text-xl font-bold tracking-[-0.02em] text-white">Nexora, by AY Systum</h2>
+  <p class="mt-3 text-sm leading-relaxed text-mist-400">
+    Nexora was designed and built by <span class="font-semibold text-mist-200">AY Systum</span>
+    for the <span class="font-semibold text-mist-200">SmartReco Build Challenge 2026</span> —
+    a hackathon brief to build a behavioural AI recommendation agent that watches, understands
+    and persuades. Every LLM completion and every embedding in this product is routed through
+    the <span class="text-signal-400">Mesh API</span> gateway; no provider SDK is called directly.
+  </p>
+  <dl class="mt-5 grid gap-4 border-t border-ink-700/70 pt-5 sm:grid-cols-3">
+    {% for label, value in [
+        ('Built by', 'AY Systum'),
+        ('Built for', 'SmartReco Build Challenge 2026'),
+        ('Model gateway', 'Mesh API')
+      ] %}
+      <div>
+        <dt class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">{{ label }}</dt>
+        <dd class="mt-1 text-sm font-semibold text-mist-200">{{ value }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</section>
+
 {% endblock %}

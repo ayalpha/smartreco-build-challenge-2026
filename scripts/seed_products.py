@@ -1,13 +1,13 @@
 """Idempotent catalog seeder.
 
-Loads 38 realistic AI / data / engineering courses into SQL **and** mirrors them
+Loads 61 realistic AI / data / engineering courses into SQL **and** mirrors them
 into Qdrant through the same dual-write path the admin UI uses.
 
 Idempotency
 -----------
 Courses are matched on ``title``: an existing row is updated in place (preserving
 its id, so recommendation history and event foreign keys stay valid) and a
-missing row is inserted.  Running this script five times leaves exactly 38
+missing row is inserted.  Running this script five times leaves exactly 61
 courses, five times.
 
 Usage
@@ -56,23 +56,119 @@ from app.vector_store.sync import reindex_all, verify_sync  # noqa: E402
 
 logger = logging.getLogger("scripts.seed_products")
 
-#: Deterministic placeholder imagery, so the demo has visuals with no asset pipeline.
-THUMBNAIL_TEMPLATE = "https://picsum.photos/seed/smartreco-{slug}/640/360"
+#: Course covers are first-party generated artwork committed to the repo — one
+#: coherent abstract-technical style across the whole catalog. No external
+#: hotlinks, no stock photos, nothing that can 404 or render something absurd.
+COVER_TEMPLATE = "/static/img/courses/{slug}.jpg"
+COVER_DIR = PROJECT_ROOT / "app" / "static" / "img" / "courses"
+
+#: Fallback used only if a title is not in :data:`COVER_BY_TITLE`.
+DEFAULT_COVER = "agentic-ai"
+
+#: Topic-accurate cover per course. Several courses legitimately share a cover
+#: when they share a subject (e.g. the two observability courses) — the artwork
+#: is chosen by topic, not by row, so nothing ever looks mismatched.
+COVER_BY_TITLE: dict[str, str] = {
+    # --- Agentic AI -------------------------------------------------------
+    "Building Production Agents with LangGraph": "agentic-ai",
+    "Agentic RAG: Retrieval That Reasons": "rag-retrieval",
+    "Multi-Agent Systems: Coordination Patterns": "multi-agent",
+    "LLM Observability with LangSmith": "llm-observability",
+    "Prompt Engineering for Structured Output": "prompt-engineering",
+    "Evaluation-Driven LLM Development": "ai-evaluation",
+    "RAG Systems in Production": "rag-retrieval",
+    "Tool Use and Function Calling for Agents": "api-design",
+    "Prompt Injection and LLM Security": "web-security",
+    # --- Machine Learning -------------------------------------------------
+    "Machine Learning Foundations with scikit-learn": "machine-learning",
+    "Feature Engineering That Actually Moves Metrics": "feature-engineering",
+    "Recommender Systems from Scratch": "recommender-systems",
+    "MLOps: Shipping Models That Survive Contact With Users": "mlops",
+    "Statistics for Machine Learning Practitioners": "statistics",
+    "Time-Series Forecasting at Scale": "statistics",
+    "Gradient Boosting in Depth: XGBoost and LightGBM": "machine-learning",
+    "Experiment Design and Online A/B Testing": "ai-evaluation",
+    # --- Deep Learning ----------------------------------------------------
+    "Deep Learning with PyTorch: Fundamentals to Fine-Tuning": "deep-learning",
+    "Transformers and Attention, Implemented Line by Line": "transformers",
+    "Fine-Tuning LLMs with LoRA and QLoRA": "fine-tuning",
+    "Computer Vision in Production": "computer-vision",
+    "Distributed Training with FSDP and DeepSpeed": "deep-learning",
+    "Diffusion Models: Theory and Practice": "computer-vision",
+    # --- Data Engineering -------------------------------------------------
+    "Data Engineering with dbt and Modern SQL": "data-engineering",
+    "Apache Airflow: Orchestration You Can Debug at 3am": "data-engineering",
+    "Streaming Data with Kafka and Flink": "streaming",
+    "Vector Databases and Semantic Search at Scale": "vector-database",
+    "Analytics Engineering with Python and Polars": "data-engineering",
+    "Analytics at Speed with DuckDB": "data-engineering",
+    "Data Contracts and Quality Engineering": "ai-evaluation",
+    "Lakehouse Architecture with Apache Iceberg": "data-engineering",
+    # --- Python -----------------------------------------------------------
+    "Modern Python: Type Hints, Async and Packaging": "python",
+    "FastAPI in Production": "api-design",
+    "Testing Python: Pytest, Fixtures and Property-Based Testing": "ai-evaluation",
+    "Python Performance: Profiling and Optimisation": "python",
+    "Rust for Python Engineers": "python",
+    # --- JavaScript -------------------------------------------------------
+    "JavaScript Deep Dive: The Event Loop and Beyond": "javascript",
+    "TypeScript for Large Codebases": "javascript",
+    "Modern React Patterns and Server Components": "web-development",
+    # --- Web Development --------------------------------------------------
+    "Full-Stack Web Development with Modern Tooling": "web-development",
+    "API Design: REST, GraphQL and When to Use Which": "api-design",
+    "Web Security Essentials for Application Developers": "web-security",
+    "Frontend Performance: Core Web Vitals in Practice": "web-development",
+    "Accessibility Engineering for Web Applications": "web-development",
+    "Real-Time Web with WebSockets and SSE": "streaming",
+    # --- DevOps -----------------------------------------------------------
+    "Docker and Containers: A Working Mental Model": "devops-containers",
+    "Kubernetes for Application Teams": "kubernetes",
+    "CI/CD with GitHub Actions": "mlops",
+    "Observability: Logs, Metrics and Traces": "observability",
+    "Platform Engineering and Internal Developer Portals": "infrastructure-as-code",
+    "Incident Response and On-Call Engineering": "observability",
+    # --- Cloud ------------------------------------------------------------
+    "Cloud Architecture Fundamentals": "cloud",
+    "Infrastructure as Code with Terraform": "infrastructure-as-code",
+    "Serverless Patterns and Anti-Patterns": "serverless",
+    "Cloud Cost Engineering and FinOps": "cloud",
+    "Event-Driven Architecture on the Cloud": "streaming",
+    # --- Career Skills ----------------------------------------------------
+    "Technical Interviews for Data and ML Roles": "career-skills",
+    "Writing for Engineers: Design Docs and Postmortems": "technical-writing",
+    "From Engineer to Tech Lead": "career-skills",
+    "System Design Interviews for Senior Engineers": "cloud",
+    "Building a Portfolio That Gets You Hired": "career-skills",
+}
 
 DEMO_PASSWORD = "smartreco123"
 
 
+def _cover_slug(title: str) -> str:
+    """Return the generated-cover slug for a course title."""
+    return COVER_BY_TITLE.get(title, DEFAULT_COVER)
+
+
 def _thumbnail(title: str) -> str:
-    """Build a stable placeholder thumbnail URL from a course title."""
-    slug = "".join(char.lower() if char.isalnum() else "-" for char in title).strip("-")
-    return THUMBNAIL_TEMPLATE.format(slug=slug[:48])
+    """Build the static path to this course's generated cover image.
+
+    Falls back to :data:`DEFAULT_COVER` for any title without an explicit
+    mapping, so a newly added course always renders a real image rather than a
+    broken one.
+    """
+    slug = _cover_slug(title)
+    if COVER_DIR.exists() and not (COVER_DIR / f"{slug}.jpg").exists():
+        logger.warning("Cover %s.jpg missing for %r — using %s", slug, title, DEFAULT_COVER)
+        slug = DEFAULT_COVER
+    return COVER_TEMPLATE.format(slug=slug)
 
 
 # --------------------------------------------------------------------------- #
 # Catalog                                                                     #
 # --------------------------------------------------------------------------- #
 
-#: 38 courses across the ten categories the brief calls for.  Descriptions are
+#: 61 courses across the ten categories the brief calls for.  Descriptions are
 #: written as prose because they are embedded for semantic retrieval — vague copy
 #: measurably degrades recommendation quality.
 CATALOG: list[dict[str, Any]] = [
@@ -696,7 +792,8 @@ CATALOG: list[dict[str, Any]] = [
             "constantly interrupted."
         ),
     },
-]
+
+ ]
 
 
 # --------------------------------------------------------------------------- #
@@ -722,7 +819,8 @@ def seed_catalog(db: Session) -> tuple[int, int]:
         existing = db.scalars(select(Product).where(Product.title == entry["title"])).first()
         payload = dict(entry)
         payload["tags"] = Product.normalise_tags(entry["tags"])
-        payload.setdefault("thumbnail_url", _thumbnail(entry["title"]))
+        # Always authoritative: migrates any previously-seeded external URL.
+        payload["thumbnail_url"] = _thumbnail(entry["title"])
 
         if existing is None:
             product = Product(**payload)

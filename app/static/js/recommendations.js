@@ -271,10 +271,20 @@
       'data-track-source="recommendation" ' +
       'data-track-recommendation="' + recommendationId + '"';
 
+    // Mirrors the Jinja `thumbnail` macro: generated cover art when the row has
+    // one, the CSS gradient cover as a fallback. Never an external hotlink.
+    const cover = product.thumbnail_url
+      ? '<img src="' + escapeHtml(product.thumbnail_url) + '" alt="Abstract cover artwork for ' +
+        escapeHtml(product.title) + ', a ' + escapeHtml(category) + ' course" loading="lazy" ' +
+        'decoding="async" width="800" height="447" class="card-cover-img h-full w-full object-cover">'
+      : '<span class="absolute inset-0 grid place-items-center">' +
+        '<span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">' + glyph + '</span></span>';
+
     const media =
-      '<div class="card-cover ' + coverClass + ' relative grid h-36 w-full place-items-center overflow-hidden rounded-t-[10px]">' +
-        '<span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">' + glyph + '</span>' +
-        '<span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/60">' +
+      '<div class="card-cover ' + coverClass + ' relative h-36 w-full overflow-hidden rounded-t-[10px]">' +
+        cover +
+        '<span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/10 to-transparent"></span>' +
+        '<span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/75">' +
           escapeHtml(category) + '</span>' +
       '</div>';
 

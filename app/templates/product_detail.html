@@ -21,15 +21,25 @@
 
   <!-- ============================ MAIN COLUMN ============================ -->
   <div class="lg:col-span-2">
-    {# Designed category cover — consistent and branded, never a wrong photo. #}
+    {# Generated first-party cover art — consistent, branded, never a wrong photo. #}
     {% set glyphs = {
       'Agentic AI': '◈', 'Machine Learning': '∿', 'Deep Learning': '▲',
       'Data Engineering': '☰', 'Python': '⌘', 'JavaScript': '{ }',
       'Web Development': '⌗', 'DevOps': '⟲', 'Cloud': '☁', 'Career Skills': '✎'
     } %}
-    <div class="card-cover cover-{{ product.category | lower | replace(' ', '-') }} relative grid aspect-[21/9] w-full place-items-center overflow-hidden rounded-xl border border-ink-700/70">
-      <span class="cover-glyph select-none text-7xl opacity-25" aria-hidden="true">{{ glyphs.get(product.category, '◇') }}</span>
-      <span class="absolute bottom-3 left-4 font-mono text-[11px] lowercase tracking-[0.2em] text-white/60">{{ product.category }}</span>
+    <div class="card-cover cover-{{ product.category | lower | replace(' ', '-') }} relative aspect-[21/9] w-full overflow-hidden rounded-xl border border-ink-700/70">
+      {% if product.thumbnail_url %}
+        <img src="{{ product.thumbnail_url }}"
+             alt="Abstract cover artwork for {{ product.title }}, a {{ product.category }} course"
+             loading="eager" fetchpriority="high" width="800" height="447"
+             class="h-full w-full object-cover">
+      {% else %}
+        <span class="absolute inset-0 grid place-items-center">
+          <span class="cover-glyph select-none text-7xl opacity-25" aria-hidden="true">{{ glyphs.get(product.category, '◇') }}</span>
+        </span>
+      {% endif %}
+      <span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/80 via-transparent to-transparent"></span>
+      <span class="absolute bottom-3 left-4 font-mono text-[11px] lowercase tracking-[0.2em] text-white/75">{{ product.category }}</span>
     </div>
 
     <div class="mt-7 flex flex-wrap items-center gap-2.5">
@@ -75,13 +85,22 @@
         <p class="text-3xl font-extrabold tracking-tight text-white">{{ product.price | money }}</p>
         <p class="mt-1 text-xs text-mist-500">Lifetime access · certificate on completion</p>
 
-        <button type="button" id="add-to-cart"
-                data-product-id="{{ product.id }}"
-                data-product-title="{{ product.title }}"
-                class="mt-5 w-full rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 disabled:opacity-60">
-          Add to cart
+        <button type="button"
+                data-save-product="{{ product.id }}"
+                data-save-title="{{ product.title }}"
+                data-save-state="unsaved"
+                data-save-label="Save for later"
+                aria-pressed="false"
+                class="save-btn save-btn--wide mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
+                  stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          </svg>
+          <span data-save-label>Save for later</span>
         </button>
-        <p id="add-to-cart-feedback" class="mt-2.5 hidden text-center text-xs font-medium text-signal-400"></p>
+        <p class="mt-2.5 text-center font-mono text-[10px] lowercase text-mist-500">
+          a save is the strongest signal the agent tracks
+        </p>
 
         <a href="/catalog?category={{ product.category | urlencode }}"
            class="mt-2.5 block w-full rounded-md border border-ink-600 px-4 py-2.5 text-center text-sm font-medium text-mist-200 transition hover:border-ink-500 hover:text-white">
@@ -125,32 +144,4 @@
 </section>
 {% endif %}
 
-{% endblock %}
-
-{% block scripts %}
-<script>
-  // Add-to-cart: a strong intent signal, so it is tracked explicitly.
-  (function () {
-    const button = document.getElementById('add-to-cart');
-    const feedback = document.getElementById('add-to-cart-feedback');
-    if (!button) return;
-
-    button.addEventListener('click', function () {
-      const productId = parseInt(button.dataset.productId, 10);
-      if (window.smartRecoTracker) {
-        window.smartRecoTracker.track('add_to_cart', {
-          product_id: productId,
-          metadata: { product_title: button.dataset.productTitle },
-        });
-        window.smartRecoTracker.flush();
-      }
-      button.disabled = true;
-      button.textContent = 'Added to cart ✓';
-      if (feedback) {
-        feedback.textContent = 'Signal recorded — this weighs heavily on your next recommendation.';
-        feedback.classList.remove('hidden');
-      }
-    });
-  })();
-</script>
 {% endblock %}

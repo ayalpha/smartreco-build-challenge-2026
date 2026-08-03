@@ -224,7 +224,10 @@ class TestCatalog:
 
         assert response.status_code == 200
         assert f'content="{products[0].id}"' in response.text
-        assert "Add to cart" in response.text
+        # The save control replaced the old "Add to cart" button; it is wired to
+        # the saved-items API and still emits an add_to_cart behavioural event.
+        assert "Save for later" in response.text
+        assert f'data-save-product="{products[0].id}"' in response.text
 
     def test_missing_product_page_is_404(self, client: TestClient) -> None:
         response = client.get("/product/999999")

@@ -15,6 +15,7 @@ from app.database import get_db
 from app.dependencies import get_current_user_optional, render_page
 from app.models.product import SKILL_LEVELS, Product
 from app.models.user import User
+from app.schemas.common import OptionalPriceQuery
 from app.schemas.product import ProductListResponse, ProductOut
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ def catalog_page(
     q: Optional[str] = Query(default=None, max_length=200),
     category: Optional[str] = Query(default=None, max_length=80),
     skill_level: Optional[str] = Query(default=None, max_length=32),
-    max_price: Optional[float] = Query(default=None, ge=0),
+    max_price: OptionalPriceQuery = None,
     page: int = Query(default=1, ge=1, le=500),
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_current_user_optional),
@@ -171,7 +172,7 @@ def list_products(
     q: Optional[str] = Query(default=None, max_length=200),
     category: Optional[str] = Query(default=None, max_length=80),
     skill_level: Optional[str] = Query(default=None, max_length=32),
-    max_price: Optional[float] = Query(default=None, ge=0),
+    max_price: OptionalPriceQuery = None,
     page: int = Query(default=1, ge=1, le=500),
     page_size: int = Query(default=PAGE_SIZE, ge=1, le=100),
     db: Session = Depends(get_db),

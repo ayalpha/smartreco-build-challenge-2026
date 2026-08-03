@@ -189,11 +189,13 @@ def admin_headers(admin: User) -> dict[str, str]:
     return _auth_headers(admin)
 
 
-#: Small, deliberately lopsided catalog: three clearly agentic-AI courses plus
+#: Small, deliberately lopsided catalog (with real generated covers, matching
+#: what the seed script writes): three clearly agentic-AI courses plus
 #: unrelated distractors, so retrieval quality is actually observable.
 SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     {
         "title": "Building Production Agents with LangGraph",
+        "thumbnail_url": "/static/img/courses/agentic-ai.jpg",
         "category": "Agentic AI",
         "skill_level": "intermediate",
         "price": 89.0,
@@ -207,6 +209,7 @@ SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     },
     {
         "title": "Agentic RAG: Retrieval That Reasons",
+        "thumbnail_url": "/static/img/courses/rag-retrieval.jpg",
         "category": "Agentic AI",
         "skill_level": "intermediate",
         "price": 79.0,
@@ -220,6 +223,7 @@ SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     },
     {
         "title": "Multi-Agent Systems: Coordination Patterns",
+        "thumbnail_url": "/static/img/courses/multi-agent.jpg",
         "category": "Agentic AI",
         "skill_level": "advanced",
         "price": 129.0,
@@ -233,6 +237,7 @@ SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     },
     {
         "title": "Vector Databases and Semantic Search at Scale",
+        "thumbnail_url": "/static/img/courses/vector-database.jpg",
         "category": "Data Engineering",
         "skill_level": "intermediate",
         "price": 79.0,
@@ -246,6 +251,7 @@ SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     },
     {
         "title": "Writing for Engineers: Design Docs and Postmortems",
+        "thumbnail_url": "/static/img/courses/technical-writing.jpg",
         "category": "Career Skills",
         "skill_level": "beginner",
         "price": 35.0,
@@ -259,6 +265,7 @@ SAMPLE_PRODUCTS: list[dict[str, Any]] = [
     },
     {
         "title": "Kubernetes for Application Teams",
+        "thumbnail_url": "/static/img/courses/kubernetes.jpg",
         "category": "DevOps",
         "skill_level": "advanced",
         "price": 119.0,

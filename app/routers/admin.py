@@ -32,6 +32,7 @@ from app.models.event import Event
 from app.models.product import SKILL_LEVELS, Product
 from app.models.recommendation import Recommendation
 from app.models.user import User
+from app.schemas.common import OptionalRatingForm
 from app.schemas.product import ProductCreate, ProductOut, ProductUpdate
 from app.vector_store.qdrant_client import get_vector_store
 from app.vector_store.sync import reindex_all, remove_product, sync_product, verify_sync
@@ -281,7 +282,7 @@ def create_product_form(
     duration: str = Form(""),
     thumbnail_url: str = Form(""),
     instructor: str = Form(""),
-    rating: Optional[float] = Form(None),
+    rating: OptionalRatingForm = None,
     is_active: bool = Form(True),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -318,7 +319,7 @@ def update_product_form(
     duration: str = Form(""),
     thumbnail_url: str = Form(""),
     instructor: str = Form(""),
-    rating: Optional[float] = Form(None),
+    rating: OptionalRatingForm = None,
     is_active: bool = Form(False),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
