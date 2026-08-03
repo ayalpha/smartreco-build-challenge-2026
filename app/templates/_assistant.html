@@ -1,0 +1,97 @@
+{# ---------------------------------------------------------------------------
+  Nexora Assistant — a floating chat panel wired to /api/assistant/chat.
+
+  Not a scripted bot: every reply is grounded in the SAME personalisation
+  signals that produced this user's "For You" panel (interest signals, behaviour
+  digest, recent events) plus live hybrid retrieval over the catalog, answered
+  through the Mesh gateway. Two users asking the same question get different
+  answers because the injected profile differs.
+
+  Rendered only for signed-in users — there is no personal signal to ground an
+  anonymous conversation in, and a generic bot would undercut the whole premise.
+--------------------------------------------------------------------------- #}
+{% if current_user %}
+<div id="assistant-root" class="print:hidden">
+
+  <!-- Launcher -->
+  <button type="button" id="assistant-toggle"
+          aria-expanded="false" aria-controls="assistant-panel"
+          aria-label="Open the Nexora assistant"
+          class="group fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-full border border-iris-500/40 bg-ink-900/95 py-3 pl-3.5 pr-4 shadow-2xl shadow-black/60 backdrop-blur transition hover:border-iris-400/70 hover:shadow-[0_0_28px_rgba(139,124,246,.28)] active:scale-[0.97] sm:bottom-6 sm:right-6">
+    <span class="relative grid h-6 w-6 place-items-center rounded-full bg-iris-500/20 text-iris-300">
+      ◈
+      <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-signal-400"></span>
+    </span>
+    <span class="text-[13px] font-semibold text-mist-100">Ask the agent</span>
+  </button>
+
+  <!-- Panel -->
+  <section id="assistant-panel" role="dialog" aria-modal="false"
+           aria-labelledby="assistant-heading"
+           class="assistant-panel fixed bottom-0 right-0 z-50 flex h-[86vh] w-full flex-col overflow-hidden border border-ink-700 bg-ink-950/98 shadow-2xl shadow-black/70 backdrop-blur-md sm:bottom-6 sm:right-6 sm:h-[560px] sm:w-[400px] sm:rounded-2xl"
+           hidden>
+
+    <!-- Header -->
+    <header class="ai-surface shrink-0 border-b border-ink-700 bg-ink-900/80 px-4 pb-3 pt-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 id="assistant-heading" class="flex items-center gap-2 text-sm font-bold text-white">
+            <span class="text-iris-400">◈</span> Nexora Assistant
+          </h2>
+          <p class="mt-1 font-mono text-[10px] lowercase leading-relaxed text-mist-500">
+            grounded in <span id="assistant-signal-count" class="text-iris-300">your</span> behaviour signals
+          </p>
+        </div>
+        <button type="button" id="assistant-close" aria-label="Close the assistant"
+                class="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-ink-700 text-mist-400 transition hover:border-ink-600 hover:text-white">✕</button>
+      </div>
+
+      <!-- The user's live interest signals — proof this is personalised -->
+      <ul id="assistant-signals" class="mt-2.5 flex flex-wrap gap-1.5" aria-label="Your interest signals"></ul>
+    </header>
+
+    <!-- Transcript -->
+    <div id="assistant-log" class="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+         role="log" aria-live="polite" aria-relevant="additions text">
+      <div class="assistant-msg assistant-msg--bot">
+        <p class="assistant-bubble assistant-bubble--bot">
+          I can see what you have been studying. Ask me what to learn next, what a course
+          assumes you already know, or how two courses differ — I will answer against your
+          own activity, not a generic catalogue blurb.
+        </p>
+      </div>
+    </div>
+
+    <!-- Suggested openers -->
+    <div id="assistant-suggestions" class="shrink-0 border-t border-ink-800 px-4 py-2.5">
+      <div class="flex flex-wrap gap-1.5">
+        {% for chip in ['What should I learn next?', 'Am I ready for something advanced?', 'What am I missing?'] %}
+          <button type="button" class="assistant-chip rounded-full border border-ink-700 bg-ink-900 px-2.5 py-1 text-[11px] text-mist-300 transition hover:border-iris-500/50 hover:text-iris-300">{{ chip }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <form id="assistant-form" class="shrink-0 border-t border-ink-800 bg-ink-900/60 p-3">
+      <div class="flex items-end gap-2">
+        <label class="sr-only" for="assistant-input">Message the assistant</label>
+        <textarea id="assistant-input" rows="1" maxlength="600" required
+                  placeholder="Ask about your next course…"
+                  class="max-h-28 flex-1 resize-none rounded-lg border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-mist-100 placeholder-mist-500 outline-none transition focus:border-iris-500/60 focus:ring-1 focus:ring-iris-500/30"></textarea>
+        <button type="submit" id="assistant-send" aria-label="Send message"
+                class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-iris-500 text-white transition hover:bg-iris-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 8h11M8.5 3.5 13 8l-4.5 4.5" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <p class="mt-2 font-mono text-[9px] lowercase tracking-wide text-mist-500">
+        answers routed through mesh · grounded in your tracked activity
+      </p>
+    </form>
+  </section>
+</div>
+
+<script src="/static/js/assistant.js" defer></script>
+{% endif %}

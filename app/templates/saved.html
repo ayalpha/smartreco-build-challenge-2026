@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Saved courses · {{ app_name }}{% endblock %}
+
+{% block content %}
+<header class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="font-mono text-[11px] lowercase tracking-[0.2em] text-iris-400">your shortlist</p>
+    <h1 class="mt-3 text-3xl font-bold tracking-[-0.02em] text-white">Saved courses</h1>
+    <p class="mt-1.5 max-w-2xl text-sm leading-relaxed text-mist-500">
+      {% if saved %}
+        {{ saved | length }} course{{ '' if saved | length == 1 else 's' }} saved.
+        Saving is also the strongest signal you can send the agent — these choices
+        weigh heavily on your next recommendation.
+      {% else %}
+        Nothing saved yet.
+      {% endif %}
+    </p>
+  </div>
+  {% if saved %}
+    <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/50 hover:text-signal-300 active:scale-[0.98]">
+      See how this shaped my picks →
+    </a>
+  {% endif %}
+</header>
+
+{% if saved %}
+  <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for product in saved %}
+      {{ ui.product_card(product, source='saved') }}
+    {% endfor %}
+  </div>
+
+  <p class="mt-10 rounded-[10px] border border-ink-700/70 bg-ink-900 px-5 py-4 font-mono text-[11px] lowercase leading-relaxed text-mist-500">
+    saves are stored as add_to_cart events — the same behavioural signal the
+    <a href="/architecture" class="text-iris-400 underline decoration-ink-600 underline-offset-2 hover:text-iris-300">interest_extractor</a>
+    node reads. this shortlist is not a separate system; it feeds the agent directly.
+  </p>
+{% else %}
+  <div class="mt-8">
+    {{ ui.empty_state(
+      'No saved courses yet',
+      'Hit “Save for later” on any course card or detail page. Saved courses land here — and because a save is the strongest intent signal the agent tracks, your For You panel reshapes around them.',
+      '/catalog', 'Browse the catalog') }}
+  </div>
+{% endif %}
+{% endblock %}
