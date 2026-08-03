@@ -6,20 +6,20 @@
 {% block content %}
 <header class="flex flex-wrap items-end justify-between gap-4">
   <div>
-    <h1 class="text-3xl font-bold tracking-tight text-white">{{ current_user.display_name }}</h1>
-    <p class="mt-1.5 text-sm text-slate-500">
+    <h1 class="text-3xl font-bold tracking-[-0.02em] text-white">{{ current_user.display_name }}</h1>
+    <p class="mt-1.5 text-sm text-mist-500">
       {{ current_user.email }} ·
-      <span class="font-mono text-xs uppercase tracking-wider text-slate-600">{{ current_user.role.value }}</span>
+      <span class="font-mono text-xs lowercase tracking-wider text-mist-500">{{ current_user.role.value }}</span>
     </p>
   </div>
-  <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-signal-500/50 hover:text-signal-300">
+  <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/50 hover:text-signal-300 active:scale-[0.98]">
     View my picks →
   </a>
 </header>
 
-<!-- =============================== ACTIVITY =============================== -->
+<!-- =============================== YOUR SIGNAL ============================ -->
 <section class="mt-8">
-  <h2 class="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500">Your activity</h2>
+  <h2 class="font-mono text-[10px] lowercase tracking-[0.2em] text-mist-500">your signal</h2>
   <dl class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     {{ ui.stat('Total events', total_events) }}
     {{ ui.stat('Recommendations', history | length) }}
@@ -29,29 +29,48 @@
 </section>
 
 <!-- =========================== TRIGGER DIAGNOSTIC ========================= -->
-<section class="mt-8 rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+<section class="mt-8 rounded-[10px] border border-ink-700/70 bg-ink-900 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
   <div class="flex flex-wrap items-start justify-between gap-4">
     <div>
       <h2 class="text-sm font-semibold text-white">Agent trigger status</h2>
-      <p class="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-slate-500">{{ trigger.detail }}</p>
+      <p class="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-mist-500">{{ trigger.detail }}</p>
     </div>
-    <span class="rounded px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset
-                 {{ 'bg-signal-500/15 text-signal-400 ring-signal-500/25' if trigger.should_run else 'bg-ink-800 text-slate-400 ring-ink-600' }}">
+    <span class="rounded px-2.5 py-1 font-mono text-[10px] font-semibold lowercase tracking-wider ring-1 ring-inset
+                 {{ 'bg-signal-500/15 text-signal-400 ring-signal-500/25' if trigger.should_run else 'bg-ink-800 text-mist-400 ring-ink-600' }}">
       {{ 'will run: ' ~ trigger.reason if trigger.should_run else 'idle' }}
     </span>
   </div>
+
+  {# Progress toward the next automatic run — a meter, not a sentence #}
+  {% set threshold = settings.agent_event_trigger_interval %}
+  {% set progress = ((trigger.new_events / threshold * 100) if threshold else 0) | round | int %}
+  {% set progress = 100 if progress > 100 else progress %}
+  <div class="mt-4">
+    <div class="flex items-baseline justify-between gap-3">
+      <p class="font-mono text-[11px] lowercase text-mist-400">
+        {{ trigger.new_events }} of {{ threshold }} new events until the next automatic run
+      </p>
+      <p class="font-mono text-[11px] tabular-nums text-signal-400">{{ progress }}%</p>
+    </div>
+    <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter"
+         aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"
+         aria-label="Progress toward the next automatic recommendation">
+      <div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400 transition-all duration-500" style="width: {{ progress }}%"></div>
+    </div>
+  </div>
+
   <dl class="mt-4 grid grid-cols-2 gap-4 border-t border-ink-700/70 pt-4 text-sm sm:grid-cols-3">
     <div>
-      <dt class="font-mono text-[10px] uppercase tracking-wider text-slate-600">Total events</dt>
-      <dd class="mt-1 font-semibold tabular-nums text-slate-200">{{ trigger.event_count }}</dd>
+      <dt class="font-mono text-[10px] lowercase tracking-wider text-mist-500">total events</dt>
+      <dd class="mt-1 font-semibold tabular-nums text-mist-50">{{ trigger.event_count }}</dd>
     </div>
     <div>
-      <dt class="font-mono text-[10px] uppercase tracking-wider text-slate-600">New since last</dt>
-      <dd class="mt-1 font-semibold tabular-nums text-slate-200">{{ trigger.new_events }}</dd>
+      <dt class="font-mono text-[10px] lowercase tracking-wider text-mist-500">new since last</dt>
+      <dd class="mt-1 font-semibold tabular-nums text-mist-50">{{ trigger.new_events }}</dd>
     </div>
     <div>
-      <dt class="font-mono text-[10px] uppercase tracking-wider text-slate-600">Threshold</dt>
-      <dd class="mt-1 font-semibold tabular-nums text-slate-200">{{ settings.agent_event_trigger_interval }} events</dd>
+      <dt class="font-mono text-[10px] lowercase tracking-wider text-mist-500">threshold</dt>
+      <dd class="mt-1 font-semibold tabular-nums text-mist-50">{{ threshold }} events</dd>
     </div>
   </dl>
 </section>
@@ -60,27 +79,28 @@
 
   <!-- ====================== RECOMMENDATION HISTORY ====================== -->
   <section class="lg:col-span-2">
-    <h2 class="text-xl font-bold tracking-tight text-white">Recommendation history</h2>
+    <h2 class="text-xl font-bold tracking-[-0.02em] text-white">Recommendation history</h2>
 
     {% if history %}
       <div class="mt-5 space-y-4">
         {% for record in history %}
-          <article class="overflow-hidden rounded-xl border border-ink-700/70 bg-ink-900">
+          <article class="{{ 'ai-surface ' if record.is_active }}overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700/70 px-5 py-3">
               <div class="flex flex-wrap items-center gap-2">
                 {% if record.is_active %}
-                  <span class="rounded bg-signal-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-signal-400 ring-1 ring-inset ring-signal-500/25">active</span>
+                  <span class="rounded bg-signal-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold lowercase tracking-wider text-signal-400 ring-1 ring-inset ring-signal-500/25">active</span>
                 {% else %}
-                  <span class="rounded bg-ink-800 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-500">superseded</span>
+                  <span class="rounded bg-ink-800 px-2 py-0.5 font-mono text-[10px] lowercase tracking-wider text-mist-500">superseded</span>
                 {% endif %}
-                <span class="font-mono text-[10px] uppercase tracking-wider text-slate-600">{{ record.trigger_reason }}</span>
+                {{ ui.trigger_chip(record.trigger_reason) }}
                 {% if record.degraded %}
-                  <span class="rounded bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-300 ring-1 ring-inset ring-amber-500/25">degraded</span>
+                  <span class="rounded bg-ink-800 px-2 py-0.5 font-mono text-[10px] lowercase tracking-wider text-mist-400 ring-1 ring-inset ring-ink-600"
+                        title="The model gateway was unreachable for this run; the agent used deterministic heuristics.">heuristic</span>
                 {% endif %}
               </div>
-              <span class="font-mono text-[11px] text-slate-600">
+              <span class="font-mono text-[11px] lowercase text-mist-500">
                 {{ record.created_at.strftime('%d %b %Y, %H:%M') }} ·
-                {{ '%.0f' | format(record.latency_ms or 0) }} ms
+                {{ '%.1f' | format((record.latency_ms or 0) / 1000) }}s
               </span>
             </div>
 
@@ -88,12 +108,12 @@
               {% if record.headline %}
                 <h3 class="text-base font-semibold text-white">{{ record.headline }}</h3>
               {% endif %}
-              <p class="mt-2 text-[13px] leading-relaxed text-slate-400">{{ record.narrative }}</p>
+              <p class="mt-2 text-[13px] leading-relaxed text-mist-400">{{ record.narrative }}</p>
 
               {% if record.interest_signals %}
                 <div class="mt-4 flex flex-wrap gap-1.5">
                   {% for signal in record.interest_signals[:5] %}
-                    <span class="rounded-full border border-ink-700 bg-ink-950 px-2.5 py-0.5 font-mono text-[10px] text-slate-400">
+                    <span class="rounded-full border border-ink-700 bg-ink-950 px-2.5 py-0.5 font-mono text-[10px] lowercase text-mist-400">
                       {{ signal.topic }} · {{ '%.0f' | format((signal.confidence | float) * 100) }}%
                     </span>
                   {% endfor %}
@@ -106,17 +126,17 @@
                     <li class="flex items-start justify-between gap-4 py-2.5">
                       <div class="min-w-0">
                         <a href="/product/{{ product.id }}"
-                           class="text-sm font-medium text-slate-200 transition hover:text-signal-400"
+                           class="text-sm font-medium text-mist-200 transition hover:text-signal-400"
                            data-track-click="{{ product.id }}"
                            data-track-source="recommendation"
                            data-track-recommendation="{{ record.id }}">
                           {{ product.title }}
                         </a>
                         {% if product.pitch %}
-                          <p class="mt-0.5 truncate text-xs text-slate-500">{{ product.pitch }}</p>
+                          <p class="mt-0.5 truncate text-xs text-mist-500">{{ product.pitch }}</p>
                         {% endif %}
                       </div>
-                      <span class="shrink-0 font-mono text-xs text-slate-500">{{ product.price | money }}</span>
+                      <span class="shrink-0 font-mono text-xs text-mist-500">{{ product.price | money }}</span>
                     </li>
                   {% endfor %}
                 </ul>
@@ -137,32 +157,39 @@
 
   <!-- ========================== RECENT EVENTS ========================== -->
   <aside>
-    <h2 class="text-xl font-bold tracking-tight text-white">Recent events</h2>
-    <p class="mt-1.5 text-[13px] text-slate-500">The raw signal the agent reads.</p>
+    <h2 class="text-xl font-bold tracking-[-0.02em] text-white">Recent signal</h2>
+    <p class="mt-1.5 text-[13px] text-mist-500">What the agent reads about you.</p>
 
     {% if activity %}
+      {% set event_icons = {
+        'page_view': '👁', 'product_click': '↗', 'search_query': '⌕',
+        'time_spent': '◔', 'add_to_cart': '＋', 'recommendation_click': '◈'
+      } %}
       <ol class="mt-5 space-y-2">
         {% for item in activity %}
-          <li class="rounded-lg border border-ink-700/70 bg-ink-900 px-3.5 py-2.5">
-            <p class="font-mono text-[10px] uppercase tracking-wider text-signal-400/70">{{ item.event_type }}</p>
-            <p class="mt-1 text-[13px] leading-snug text-slate-300">{{ item.description }}</p>
+          <li class="flex gap-3 rounded-lg border border-ink-700/70 bg-ink-900 px-3.5 py-2.5">
+            <span class="mt-0.5 shrink-0 text-sm text-iris-400/80" aria-hidden="true">{{ event_icons.get(item.event_type, '·') }}</span>
+            <div class="min-w-0">
+              <p class="font-mono text-[10px] lowercase tracking-wider text-mist-500">{{ item.event_type | replace('_', ' ') }}</p>
+              <p class="mt-0.5 text-[13px] leading-snug text-mist-200">{{ item.description }}</p>
+            </div>
           </li>
         {% endfor %}
       </ol>
     {% else %}
-      <p class="mt-5 rounded-lg border border-dashed border-ink-700 px-4 py-8 text-center text-sm text-slate-600">
+      <p class="mt-5 rounded-lg border border-dashed border-ink-700 px-4 py-8 text-center text-sm text-mist-500">
         No events recorded yet.
       </p>
     {% endif %}
 
     {% if event_counts %}
-      <div class="mt-6 rounded-xl border border-ink-700/70 bg-ink-900 p-4">
-        <p class="font-mono text-[10px] uppercase tracking-[0.15em] text-slate-500">Event breakdown</p>
+      <div class="mt-6 rounded-[10px] border border-ink-700/70 bg-ink-900 p-4">
+        <p class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">event breakdown</p>
         <dl class="mt-3 space-y-2 text-sm">
           {% for event_type, count in event_counts.items() | sort(attribute='1', reverse=true) %}
             <div class="flex items-center justify-between gap-3">
-              <dt class="font-mono text-xs text-slate-400">{{ event_type }}</dt>
-              <dd class="font-semibold tabular-nums text-slate-200">{{ count }}</dd>
+              <dt class="font-mono text-xs lowercase text-mist-400">{{ event_type | replace('_', ' ') }}</dt>
+              <dd class="font-semibold tabular-nums text-mist-50">{{ count }}</dd>
             </div>
           {% endfor %}
         </dl>

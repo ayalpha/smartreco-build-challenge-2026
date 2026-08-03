@@ -8,7 +8,7 @@
   <h1 class="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-white">
     How the recommendation agent works
   </h1>
-  <p class="mt-5 text-[15px] leading-relaxed text-slate-400">
+  <p class="mt-5 text-[15px] leading-relaxed text-mist-400">
     SmartReco is a seven-node LangGraph state machine. It reads behavioural events, extracts
     the interests behind them, retrieves candidates with hybrid vector search, grades each one
     with an LLM judge, loops back to broaden the search when the result set is thin, and only
@@ -20,7 +20,7 @@
 <section class="mt-12">
   <h2 class="text-xl font-bold tracking-tight text-white">The seven nodes</h2>
 
-  <div class="mt-5 space-y-3">
+  <div class="pipeline-list relative mt-5 space-y-3">
     {% set nodes = [
       ('activity_analyzer', 'Behaviour → digest',
        'Loads the last 60 events, renders them as a chronological log, and asks Mesh for a factual behavioural digest. Weights cart adds and long dwell times far above bare page views.',
@@ -52,12 +52,12 @@
             <span class="grid h-6 w-6 shrink-0 place-items-center rounded bg-signal-500/15 font-mono text-[11px] font-bold text-signal-400">{{ loop.index }}</span>
             <h3 class="font-mono text-sm font-semibold text-white">{{ name }}</h3>
           </div>
-          <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+          <p class="font-mono text-[10px] uppercase tracking-wider text-mist-500">
             {% if model_key == 'none' %}no model call{% else %}{{ models.get(model_key, model_key) }}{% endif %}
           </p>
         </div>
-        <p class="mt-2 pl-9 text-sm font-medium text-slate-300">{{ summary }}</p>
-        <p class="mt-1.5 pl-9 text-[13px] leading-relaxed text-slate-500">{{ detail }}</p>
+        <p class="mt-2 pl-9 text-sm font-medium text-mist-200">{{ summary }}</p>
+        <p class="mt-1.5 pl-9 text-[13px] leading-relaxed text-mist-500">{{ detail }}</p>
       </article>
     {% endfor %}
   </div>
@@ -66,19 +66,19 @@
 <!-- ============================= GRAPH DIAGRAM ============================ -->
 <section class="mt-12">
   <h2 class="text-xl font-bold tracking-tight text-white">Graph topology</h2>
-  <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
-    One conditional edge, on <code class="font-mono text-slate-400">relevance_grader</code>: proceed to the
+  <p class="mt-2 max-w-2xl text-sm leading-relaxed text-mist-500">
+    One conditional edge, on <code class="font-mono text-mist-400">relevance_grader</code>: proceed to the
     writer when at least {{ settings.agent_min_relevant_products }} relevant candidates survive; otherwise
     refine and retry, up to {{ settings.agent_max_retrieval_retries }} times; if the budget runs out,
     write a recommendation from what we have rather than returning nothing.
   </p>
 
   <div class="mt-5 overflow-x-auto rounded-xl border border-ink-700/70 bg-ink-950 p-5">
-    <pre class="font-mono text-[11px] leading-relaxed text-slate-400">{{ mermaid }}</pre>
+    <pre class="font-mono text-[11px] leading-relaxed text-mist-400">{{ mermaid }}</pre>
   </div>
-  <p class="mt-2 font-mono text-[11px] text-slate-600">
+  <p class="mt-2 font-mono text-[11px] text-mist-500">
     Mermaid definition, rendered live from the compiled graph. Machine-readable version:
-    <a href="/api/agent/graph" class="text-slate-500 underline decoration-ink-600 underline-offset-2 transition hover:text-slate-300">/api/agent/graph</a>
+    <a href="/api/agent/graph" class="text-mist-500 underline decoration-ink-600 underline-offset-2 transition hover:text-mist-200">/api/agent/graph</a>
   </p>
 </section>
 
@@ -86,7 +86,7 @@
 <section class="mt-12 grid gap-4 lg:grid-cols-2">
   <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
     <h2 class="text-sm font-semibold text-white">When the agent runs</h2>
-    <p class="mt-2 text-[13px] leading-relaxed text-slate-500">
+    <p class="mt-2 text-[13px] leading-relaxed text-mist-500">
       Running on every event would be wasteful; running once per session would go stale.
       Three rules, checked in priority order:
     </p>
@@ -99,11 +99,11 @@
       {% for reason, detail in rules %}
         <li class="flex gap-3">
           <span class="mt-0.5 shrink-0 rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-signal-400">{{ reason }}</span>
-          <span class="text-slate-400">{{ detail }}</span>
+          <span class="text-mist-400">{{ detail }}</span>
         </li>
       {% endfor %}
     </ol>
-    <p class="mt-4 text-xs leading-relaxed text-slate-600">
+    <p class="mt-4 text-xs leading-relaxed text-mist-500">
       Dispatch is asynchronous: <code class="font-mono">POST /api/events</code> only evaluates two indexed
       COUNT queries, then hands the run to APScheduler. A Redis <code class="font-mono">SET NX EX</code> lock
       keyed by user id makes duplicate concurrent runs impossible.
@@ -123,20 +123,20 @@
           ('scheduler', 'running' if scheduler.running else 'stopped')
         ] %}
         <div class="flex justify-between gap-4 border-b border-ink-800 pb-1.5">
-          <dt class="text-slate-500">{{ label }}</dt>
-          <dd class="truncate text-slate-300">{{ value }}</dd>
+          <dt class="text-mist-500">{{ label }}</dt>
+          <dd class="truncate text-mist-200">{{ value }}</dd>
         </div>
       {% endfor %}
     </dl>
 
     {% if scheduler.jobs %}
       <div class="mt-4">
-        <p class="font-mono text-[10px] uppercase tracking-wider text-slate-600">Scheduled jobs</p>
-        <ul class="mt-2 space-y-1.5 font-mono text-[11px] text-slate-400">
+        <p class="font-mono text-[10px] uppercase tracking-wider text-mist-500">Scheduled jobs</p>
+        <ul class="mt-2 space-y-1.5 font-mono text-[11px] text-mist-400">
           {% for job in scheduler.jobs %}
             <li class="flex justify-between gap-3">
               <span class="truncate">{{ job.name }}</span>
-              <span class="shrink-0 text-slate-600">{{ job.next_run[:16] if job.next_run else '—' }}</span>
+              <span class="shrink-0 text-mist-500">{{ job.next_run[:16] if job.next_run else '—' }}</span>
             </li>
           {% endfor %}
         </ul>
@@ -148,7 +148,7 @@
 <!-- ============================ DEGRADED MODE ============================= -->
 <section class="mt-12 max-w-3xl">
   <h2 class="text-xl font-bold tracking-tight text-white">Failure behaviour</h2>
-  <p class="mt-2 text-sm leading-relaxed text-slate-400">
+  <p class="mt-2 text-sm leading-relaxed text-mist-400">
     A recommendation engine that returns a 500 is worse than one that returns a slightly weaker
     answer. Every node catches its own exceptions, records them in the run trace, and falls back to
     a deterministic heuristic — behavioural weighting for interests, lexical overlap for grading,

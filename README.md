@@ -6,7 +6,7 @@
 
 Built for the **SmartReco Build Challenge 2026**
 
-[![SmartReco Checks](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-checks.yml/badge.svg)](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-checks.yml)
+[![SmartReco Checks](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml/badge.svg)](https://github.com/AYTechOfficial/test/actions/workflows/smartreco-checks.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-state%20machine-1C3C3C)
@@ -177,8 +177,8 @@ human-readable page at **`/architecture`**.
 ### Option A — Docker Compose (one command)
 
 ```bash
-git clone https://github.com/ayalpha/smartreco-build-challenge-2026.git
-cd smartreco-build-challenge-2026
+git clone https://github.com/AYTechOfficial/test.git
+cd test
 cp .env.example .env          # then add your MESH_API_KEY
 docker compose up -d
 ```

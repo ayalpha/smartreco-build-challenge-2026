@@ -1,9 +1,10 @@
 {# ---------------------------------------------------------------------------
   Base layout: navigation, flash messages, footer and the behavioural tracker.
 
-  Every page extends this template. The tracker script is loaded here (deferred)
-  so that a page_view event is emitted for every route without each template
-  having to remember to do it.
+  Design system: "ink" surfaces + "mist" text ramp (all pairings WCAG AA),
+  signal-green = the agent's OUTCOME colour, iris-violet = the agent's
+  REASONING colour. Machine voice = lowercase JetBrains Mono; human voice =
+  Inter. AI-generated surfaces carry the .ai-surface gradient top border.
 --------------------------------------------------------------------------- #}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -29,11 +30,20 @@
           },
           colors: {
             ink: {
-              950: '#080a0f', 900: '#0d1117', 850: '#12161f',
-              800: '#171c27', 700: '#222834', 600: '#2f3746',
+              950: '#05070C', 900: '#0A0E16', 850: '#0F141F',
+              800: '#151B29', 700: '#1E2637', 600: '#2B3550', 500: '#3A465F',
+            },
+            mist: {
+              50:  '#F2F5FA',  // primary text      16.9:1 on ink-900
+              200: '#C7D0DC',  // strong secondary  11.2:1
+              400: '#98A4B5',  // secondary          6.9:1
+              500: '#7E8A9C',  // muted floor        5.0:1
             },
             signal: {
-              400: '#4ade9a', 500: '#22c98a', 600: '#12a16c',
+              300: '#7DF0BC', 400: '#4ADE9A', 500: '#22C98A', 600: '#12A16C',
+            },
+            iris: {
+              300: '#C7BDFC', 400: '#A99EF8', 500: '#8B7CF6',
             },
           },
         },
@@ -47,65 +57,109 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>">
 </head>
 
-<body class="h-full bg-ink-950 text-slate-200 font-sans antialiased selection:bg-signal-500/30">
+<body class="h-full bg-ink-950 text-mist-200 font-sans antialiased selection:bg-signal-500/30">
 
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded focus:bg-signal-500 focus:px-3 focus:py-2 focus:text-ink-950">Skip to content</a>
 
 <!-- ============================== NAVIGATION ============================== -->
 <header class="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
-  <nav class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-    <a href="/" class="group flex items-center gap-2.5 shrink-0">
-      <span class="grid h-8 w-8 place-items-center rounded-lg bg-signal-500/15 text-signal-400 ring-1 ring-signal-500/30 transition group-hover:bg-signal-500/25">◈</span>
+  <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:px-8">
+    <a href="/" class="group flex shrink-0 items-center gap-2.5">
+      <span class="relative grid h-8 w-8 place-items-center rounded-lg bg-signal-500/15 text-signal-400 ring-1 ring-signal-500/30 transition group-hover:bg-signal-500/25">
+        ◈
+        <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-signal-400"
+              title="agent online" aria-hidden="true"></span>
+      </span>
       <span class="text-[15px] font-bold tracking-tight text-white">{{ app_name }}</span>
     </a>
 
+    {% set nav_items = [('/', 'For You'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
+
     <div class="hidden items-center gap-1 md:flex">
-      {% set nav_items = [('/', 'For You'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
       {% for href, label in nav_items %}
         <a href="{{ href }}"
-           class="rounded-md px-3 py-1.5 text-sm font-medium transition
-                  {% if request.url.path == href %}bg-ink-800 text-white{% else %}text-slate-400 hover:bg-ink-850 hover:text-slate-100{% endif %}">
+           class="nav-link relative rounded-md px-3 py-1.5 text-sm font-medium transition
+                  {% if request.url.path == href %}text-white after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-signal-500{% else %}text-mist-400 hover:bg-ink-850 hover:text-mist-50{% endif %}">
           {{ label }}
         </a>
       {% endfor %}
       {% if current_user and current_user.is_admin %}
         <a href="/admin"
-           class="rounded-md px-3 py-1.5 text-sm font-medium transition
-                  {% if request.url.path.startswith('/admin') %}bg-ink-800 text-white{% else %}text-slate-400 hover:bg-ink-850 hover:text-slate-100{% endif %}">
+           class="nav-link relative rounded-md px-3 py-1.5 text-sm font-medium transition
+                  {% if request.url.path.startswith('/admin') %}text-white after:absolute after:inset-x-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-signal-500{% else %}text-mist-400 hover:bg-ink-850 hover:text-mist-50{% endif %}">
           Admin
         </a>
       {% endif %}
     </div>
 
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2">
       <form action="/catalog" method="get" class="hidden lg:block">
         <label class="sr-only" for="nav-search">Search courses</label>
         <input id="nav-search" type="search" name="q" placeholder="Search courses…"
                value="{{ filters.q if filters is defined else '' }}"
-               class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+               class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
       </form>
 
       {% if current_user %}
-        <a href="/profile" class="hidden items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-slate-300 transition hover:border-ink-600 hover:text-white sm:flex">
+        <a href="/profile" class="flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-mist-200 transition hover:border-ink-600 hover:text-white sm:px-3">
           <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 text-[10px] font-bold text-signal-400">
             {{ current_user.display_name[0] | upper }}
           </span>
-          <span class="max-w-[9rem] truncate">{{ current_user.display_name }}</span>
+          <span class="hidden max-w-[9rem] truncate sm:inline">{{ current_user.display_name }}</span>
         </a>
-        <form action="/logout" method="post">
-          <button type="submit" class="rounded-md px-3 py-1.5 text-sm text-slate-400 transition hover:text-white">Sign out</button>
+        <form action="/logout" method="post" class="hidden sm:block">
+          <button type="submit" class="rounded-md px-3 py-1.5 text-sm text-mist-400 transition hover:text-white">Sign out</button>
         </form>
       {% else %}
-        <a href="/login" class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:text-white">Sign in</a>
-        <a href="/register" class="rounded-md bg-signal-500 px-3.5 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400">Get started</a>
+        <a href="/login" class="hidden rounded-md px-3 py-1.5 text-sm font-medium text-mist-200 transition hover:text-white sm:block">Sign in</a>
+        <a href="/register" class="rounded-md bg-signal-500 px-3.5 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)]">Get started</a>
       {% endif %}
+
+      {# ---- Mobile menu: <details> disclosure — no JS, natively keyboard-accessible ---- #}
+      <details class="relative md:hidden" id="mobile-menu">
+        <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-200 transition hover:border-ink-600 [&::-webkit-details-marker]:hidden"
+                 aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </summary>
+        <div class="absolute right-0 top-11 z-50 w-64 rounded-xl border border-ink-700 bg-ink-950/95 p-2 shadow-2xl shadow-black/60 backdrop-blur-md">
+          <form action="/catalog" method="get" class="p-1.5">
+            <label class="sr-only" for="mobile-search">Search courses</label>
+            <input id="mobile-search" type="search" name="q" placeholder="Search courses…"
+                   class="w-full rounded-md border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm text-mist-200 placeholder-mist-500 outline-none focus:border-signal-500/60">
+          </form>
+          {% for href, label in nav_items %}
+            <a href="{{ href }}"
+               class="block rounded-md px-3.5 py-3 text-sm font-medium transition
+                      {% if request.url.path == href %}bg-ink-800 text-white{% else %}text-mist-200 hover:bg-ink-850 hover:text-white{% endif %}">
+              {{ label }}
+            </a>
+          {% endfor %}
+          {% if current_user %}
+            {% if current_user.is_admin %}
+              <a href="/admin" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Admin</a>
+            {% endif %}
+            <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/profile" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Profile</a>
+              <form action="/logout" method="post">
+                <button type="submit" class="block w-full rounded-md px-3.5 py-3 text-left text-sm font-medium text-mist-400 transition hover:bg-ink-850 hover:text-white">Sign out</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/login" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Sign in</a>
+            </div>
+          {% endif %}
+        </div>
+      </details>
     </div>
   </nav>
 </header>
 
 <!-- ============================ FLASH MESSAGES ============================ -->
 {% if flashes %}
-  <div class="mx-auto mt-4 max-w-7xl space-y-2 px-5 sm:px-8" id="flash-container">
+  <div class="mx-auto mt-4 max-w-7xl space-y-2 px-4 sm:px-8" id="flash-container">
     {% for item in flashes %}
       {% set styles = {
         'success': 'border-signal-500/40 bg-signal-500/10 text-signal-400',
@@ -116,26 +170,38 @@
       <div role="status"
            class="flash-message flex items-start justify-between gap-4 rounded-lg border px-4 py-3 text-sm {{ styles.get(item.category, styles['info']) }}">
         <span>{{ item.message }}</span>
-        <button type="button" onclick="this.parentElement.remove()" aria-label="Dismiss" class="shrink-0 opacity-60 transition hover:opacity-100">✕</button>
+        <button type="button" onclick="this.closest('.flash-message').remove()" aria-label="Dismiss" class="shrink-0 opacity-60 transition hover:opacity-100">✕</button>
       </div>
     {% endfor %}
   </div>
 {% endif %}
 
 <!-- ================================= MAIN ================================= -->
-<main id="main" class="mx-auto max-w-7xl px-5 pb-20 pt-8 sm:px-8">
+<main id="main" class="mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-8">
   {% block content %}{% endblock %}
 </main>
 
 <!-- ================================ FOOTER ================================ -->
+{% if slim_footer is defined and slim_footer %}
 <footer class="border-t border-ink-800 bg-ink-950">
-  <div class="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-8">
+    <p class="flex items-center gap-2 text-sm font-bold text-white">
+      <span class="text-signal-400">◈</span> {{ app_name }}
+    </p>
+    <p class="font-mono text-[11px] lowercase text-mist-500">
+      seven-node langgraph agent · every model call via mesh
+    </p>
+  </div>
+</footer>
+{% else %}
+<footer class="border-t border-ink-800 bg-ink-950">
+  <div class="mx-auto max-w-7xl px-4 py-10 sm:px-8">
     <div class="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
       <div class="max-w-md">
         <p class="flex items-center gap-2 text-sm font-bold text-white">
           <span class="text-signal-400">◈</span> {{ app_name }}
         </p>
-        <p class="mt-2 text-sm leading-relaxed text-slate-500">
+        <p class="mt-2 text-sm leading-relaxed text-mist-500">
           A behavioural recommendation agent built on a seven-node LangGraph state machine
           with hybrid dense ⊕ BM25 retrieval. Every model call is routed through the Mesh API.
         </p>
@@ -143,24 +209,24 @@
 
       <dl class="grid grid-cols-2 gap-x-10 gap-y-3 text-sm sm:grid-cols-3">
         <div>
-          <dt class="text-xs uppercase tracking-wider text-slate-600">Agent</dt>
-          <dd class="mt-1 space-y-1 text-slate-400">
-            <a class="block transition hover:text-slate-200" href="/architecture">Architecture</a>
-            <a class="block transition hover:text-slate-200" href="/api/agent/graph">Graph JSON</a>
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">Agent</dt>
+          <dd class="mt-1 space-y-1 text-mist-400">
+            <a class="block transition hover:text-mist-50" href="/architecture">Architecture</a>
+            <a class="block transition hover:text-mist-50" href="/api/agent/graph">Graph JSON</a>
           </dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wider text-slate-600">API</dt>
-          <dd class="mt-1 space-y-1 text-slate-400">
-            <a class="block transition hover:text-slate-200" href="/docs">OpenAPI docs</a>
-            <a class="block transition hover:text-slate-200" href="/health/ready">Readiness</a>
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">API</dt>
+          <dd class="mt-1 space-y-1 text-mist-400">
+            <a class="block transition hover:text-mist-50" href="/docs">OpenAPI docs</a>
+            <a class="block transition hover:text-mist-50" href="/health/ready">Readiness</a>
           </dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wider text-slate-600">Status</dt>
-          <dd class="mt-1 space-y-1 font-mono text-xs text-slate-500">
+          <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">Status</dt>
+          <dd class="mt-1 space-y-1 font-mono text-xs text-mist-500">
             <span class="block">env: {{ environment }}</span>
-            <span class="block">mesh: {{ 'live' if mesh_configured else 'degraded' }}</span>
+            <span class="block">gateway: {{ 'configured' if mesh_configured else 'absent' }}</span>
             <span class="block">tracing: {{ 'on' if langsmith_enabled else 'off' }}</span>
           </dd>
         </div>
@@ -168,8 +234,30 @@
     </div>
   </div>
 </footer>
+{% endif %}
 
 <script src="/static/js/tracker.js" defer></script>
+<script>
+  // Flash auto-dismiss: fade out after 6s, pause the timer while hovered.
+  (function () {
+    document.querySelectorAll('.flash-message').forEach(function (el) {
+      var remaining = 6000, start = Date.now(), timer;
+      function arm() {
+        start = Date.now();
+        timer = window.setTimeout(function () {
+          el.classList.add('flash-out');
+          window.setTimeout(function () { el.remove(); }, 300);
+        }, remaining);
+      }
+      el.addEventListener('mouseenter', function () {
+        window.clearTimeout(timer);
+        remaining -= Date.now() - start;
+      });
+      el.addEventListener('mouseleave', arm);
+      arm();
+    });
+  })();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

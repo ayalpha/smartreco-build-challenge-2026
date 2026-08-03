@@ -1,30 +1,60 @@
 /* ==========================================================================
    SmartReco — supplemental styles.
 
-   Tailwind (via CDN) does the layout work. This file holds only what Tailwind
-   utilities cannot express cleanly: keyframes, scrollbar theming, and a few
-   element defaults.
+   Tailwind (via CDN) does the layout work. This file holds the design-system
+   layer Tailwind utilities cannot express cleanly: tokens, keyframes, the
+   AI-surface grammar, the pipeline tracker, the reveal sequence, the hero
+   console, designed category covers, scrollbars and element defaults.
+
+   Motion philosophy: motion fires only when (1) the system heard you (120ms),
+   (2) state changed (240ms), or (3) the agent is thinking / finished thinking
+   (orchestrated, 500–900ms). Everything dies under prefers-reduced-motion.
    ========================================================================== */
 
 :root {
-  --ink-950: #080a0f;
-  --ink-900: #0d1117;
-  --ink-850: #12161f;
-  --ink-800: #171c27;
-  --ink-700: #222834;
-  --ink-600: #2f3746;
-  --signal-400: #4ade9a;
-  --signal-500: #22c98a;
+  --canvas: #05070c;
+  --surface: #0a0e16;
+  --raised: #0f141f;
+  --line: #1e2637;
+  --line-strong: #2b3550;
+  --signal: #22c98a;
+  --signal-bright: #4ade9a;
+  --iris: #8b7cf6;
+  --iris-bright: #a99ef8;
+  --glow-signal: 0 0 24px rgba(34, 201, 138, 0.14);
+  --glow-iris: 0 0 24px rgba(139, 124, 246, 0.12);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* --------------------------------------------------------------------------
-   Loading skeletons (shown while the agent is generating)
+   AI-surface grammar: every AI-generated surface — and only those — carries
+   an iris→signal gradient top border. Static content never gets one.
+   -------------------------------------------------------------------------- */
+
+.ai-surface {
+  position: relative;
+}
+
+.ai-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--iris), var(--signal) 55%, transparent 92%);
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Loading skeletons
    -------------------------------------------------------------------------- */
 
 .skeleton {
   position: relative;
   overflow: hidden;
-  background-color: var(--ink-800);
+  background-color: #151b29;
 }
 
 .skeleton::after {
@@ -49,11 +79,169 @@
 }
 
 /* --------------------------------------------------------------------------
+   Pipeline tracker — the seven node chips that narrate a live agent run
+   -------------------------------------------------------------------------- */
+
+.pipe-chip {
+  transition: color 0.24s var(--ease-standard),
+    border-color 0.24s var(--ease-standard),
+    background-color 0.24s var(--ease-standard);
+}
+
+.pipe-chip.is-active {
+  color: var(--iris-bright);
+  border-color: rgba(139, 124, 246, 0.45);
+  background: rgba(139, 124, 246, 0.08);
+  animation: chip-think 1.1s ease-in-out infinite;
+}
+
+.pipe-chip.is-done {
+  color: var(--signal-bright);
+  border-color: rgba(34, 201, 138, 0.4);
+  background: rgba(34, 201, 138, 0.07);
+  animation: none;
+}
+
+@keyframes chip-think {
+  50% {
+    box-shadow: 0 0 12px rgba(139, 124, 246, 0.25);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The reveal — skeleton → recommendation, staged
+   -------------------------------------------------------------------------- */
+
+.reveal-in {
+  animation: reveal-rise 0.4s var(--ease-reveal) both;
+}
+
+.reveal-child {
+  opacity: 0;
+  animation: reveal-rise 0.36s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Confidence bars sweep from zero when the disclosure opens. */
+details[open] .sig-bar > div {
+  animation: bar-fill 0.6s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+@keyframes bar-fill {
+  from {
+    width: 0 !important;
+  }
+}
+
+/* Disclosure body: smooth open/close without JS, semantics intact. */
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s var(--ease-standard);
+}
+
+details[open] .disclosure {
+  grid-template-rows: 1fr;
+}
+
+.disclosure > div {
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Hero agent console — typed pipeline trace (pure CSS stagger, no JS)
+   -------------------------------------------------------------------------- */
+
+.console-line {
+  opacity: 0;
+  animation: console-in 0.3s ease-out forwards;
+  animation-delay: calc(0.5s + var(--line) * 0.55s);
+}
+
+@keyframes console-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.console-caret {
+  animation: caret-blink 1.1s step-end infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Designed category covers — replaces stock thumbnails everywhere
+   -------------------------------------------------------------------------- */
+
+.card-cover {
+  background-image:
+    linear-gradient(135deg, var(--c1, #151b29) 0%, var(--c2, #0a0e16) 100%),
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px);
+}
+
+.card-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(140px 90px at 70% 20%, rgba(255, 255, 255, 0.07), transparent);
+  opacity: 0;
+  transition: opacity 0.12s var(--ease-standard);
+}
+
+article:hover .card-cover::after,
+a:hover .card-cover::after {
+  opacity: 1;
+}
+
+.cover-glyph {
+  color: #ffffff;
+  text-shadow: 0 0 32px rgba(255, 255, 255, 0.25);
+}
+
+.cover-agentic-ai        { --c1: #123b2e; --c2: #05070c; }
+.cover-machine-learning  { --c1: #12294a; --c2: #05070c; }
+.cover-deep-learning     { --c1: #2c1b4d; --c2: #05070c; }
+.cover-data-engineering  { --c1: #0e3a3e; --c2: #05070c; }
+.cover-python            { --c1: #233a12; --c2: #05070c; }
+.cover-javascript        { --c1: #4a3a10; --c2: #05070c; }
+.cover-web-development   { --c1: #3e1b33; --c2: #05070c; }
+.cover-devops            { --c1: #3a2410; --c2: #05070c; }
+.cover-cloud             { --c1: #12303f; --c2: #05070c; }
+.cover-career-skills     { --c1: #331f3e; --c2: #05070c; }
+
+/* --------------------------------------------------------------------------
    Flash messages
    -------------------------------------------------------------------------- */
 
 .flash-message {
-  animation: flash-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: flash-in 220ms var(--ease-enter);
+}
+
+.flash-out {
+  animation: flash-out-anim 280ms var(--ease-standard) forwards;
 }
 
 @keyframes flash-in {
@@ -67,13 +255,39 @@
   }
 }
 
+@keyframes flash-out-anim {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Architecture page — vertical pipeline connector
+   -------------------------------------------------------------------------- */
+
+.pipeline-list {
+  position: relative;
+}
+
+.pipeline-list::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--iris), var(--signal));
+  opacity: 0.35;
+}
+
 /* --------------------------------------------------------------------------
    Scrollbars — the default light scrollbar is jarring on a dark canvas
    -------------------------------------------------------------------------- */
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--ink-600) transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -86,14 +300,14 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--ink-600);
+  background-color: var(--line-strong);
   border: 2px solid transparent;
   background-clip: content-box;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #3d4759;
+  background-color: #3a465f;
 }
 
 /* --------------------------------------------------------------------------
@@ -105,20 +319,17 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* Native date/number/select controls render with a light UI by default. */
 input,
 select,
 textarea {
   color-scheme: dark;
 }
 
-/* Remove the browser's default search-cancel button, which is unstyleable. */
 input[type='search']::-webkit-search-decoration,
 input[type='search']::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
 
-/* Hide the default triangle on <details><summary> — the templates supply their own. */
 summary::-webkit-details-marker {
   display: none;
 }
@@ -127,7 +338,6 @@ summary {
   outline-offset: 4px;
 }
 
-/* Line clamping for card descriptions (Tailwind's plugin is not loaded via CDN). */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -142,14 +352,12 @@ summary {
   overflow: hidden;
 }
 
-/* Tabular numerals keep dashboard counters from shifting as they update. */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Keyboard focus ring, consistent across the app. */
 :focus-visible {
-  outline: 2px solid var(--signal-500);
+  outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
 
@@ -169,6 +377,15 @@ summary {
 
   .skeleton::after {
     display: none;
+  }
+
+  .console-line,
+  .reveal-child {
+    opacity: 1;
+  }
+
+  .pipe-chip.is-active {
+    animation: none;
   }
 }
 
