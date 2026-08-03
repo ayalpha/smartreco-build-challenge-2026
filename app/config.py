@@ -13,10 +13,11 @@ name looks like a credential.
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
 from typing import Any, Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -166,6 +167,34 @@ class Settings(BaseSettings):
         if dsn.startswith("postgresql://"):
             return "postgresql+psycopg2://" + dsn[len("postgresql://"):]
         return dsn
+
+    @model_validator(mode="after")
+    def _infer_platform_base_url(self) -> "Settings":
+        """Adopt the hosting platform's public URL when ``BASE_URL`` is unset.
+
+        ``BASE_URL`` only matters for absolute links in digest emails and Telegram
+        messages, and on a PaaS the correct value is not knowable until the
+        service has been created — which makes it exactly the kind of variable
+        people forget to set, leaving ``localhost:8000`` links in a live email.
+
+        Render injects ``RENDER_EXTERNAL_URL`` (a full URL) and Railway injects
+        ``RAILWAY_PUBLIC_DOMAIN`` (a bare hostname), so both are picked up here.
+        An explicitly configured ``BASE_URL`` always wins.
+        """
+        if "base_url" in self.model_fields_set:
+            return self
+
+        external = (os.environ.get("RENDER_EXTERNAL_URL") or "").strip()
+        if not external:
+            domain = (os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip()
+            if domain:
+                external = f"https://{domain}"
+
+        if external:
+            self.base_url = external.rstrip("/")
+            logger.info("Detected platform public URL — BASE_URL=%s", self.base_url)
+
+        return self
 
     # -------------------------------------------------------- derived props
     @property
