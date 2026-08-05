@@ -298,16 +298,40 @@ a:hover .card-cover-img {
    Nexora Assistant — floating personalised chat
    -------------------------------------------------------------------------- */
 
+/* THE CLICK BUG: the panel carries Tailwind's `flex` class AND the `hidden`
+   attribute. An author `.flex{display:flex}` rule outranks the UA
+   `[hidden]{display:none}` rule, so the panel stayed laid out — invisible at
+   opacity 0, but sitting on top of the launcher and swallowing every click.
+   Two independent guards now: force display:none while the attribute is set,
+   and make the panel click-through until it is actually open. */
+.assistant-panel[hidden] {
+  display: none !important;
+}
+
 .assistant-panel {
   opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
   transform: translateY(12px) scale(0.985);
   transform-origin: bottom right;
-  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter);
+  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter),
+    visibility 0s linear 0.22s;
 }
 
 .assistant-panel.is-open {
   opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
   transform: none;
+  transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter),
+    visibility 0s;
+}
+
+/* The launcher must always sit above a closed panel. */
+#assistant-toggle {
+  z-index: 55;
+  transition: opacity 0.18s var(--ease-standard), transform 0.18s var(--ease-standard),
+    border-color 0.18s var(--ease-standard), box-shadow 0.18s var(--ease-standard);
 }
 
 .assistant-msg {
@@ -403,6 +427,52 @@ a:hover .card-cover-img {
   0%   { transform: scale(1); }
   38%  { transform: scale(1.18); }
   100% { transform: scale(1); }
+}
+
+.cart-btn.is-added,
+.save-btn.is-added {
+  border-color: rgba(34, 201, 138, 0.55);
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+}
+
+/* Confirmation tick draws itself on the success screen. */
+.success-check {
+  animation: success-pop 0.5s var(--ease-reveal) both;
+}
+
+.success-tick {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
+}
+
+@keyframes success-pop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes tick-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Brand mark: the node pulses gently, matching the "agent online" language. */
+.nexora-pulse {
+  animation: mark-pulse 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes mark-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Staggered card entrance on grid pages. */
+.card-enter {
+  opacity: 0;
+  animation: reveal-rise 0.42s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 45ms);
 }
 
 .saved-pop {
@@ -521,7 +591,53 @@ summary {
   .pipe-chip.is-active,
   .assistant-typing span,
   .save-burst,
-  .saved-pop {
+  .cart-btn.is-added,
+.save-btn.is-added {
+  border-color: rgba(34, 201, 138, 0.55);
+  background: rgba(34, 201, 138, 0.14);
+  color: var(--signal-bright);
+}
+
+/* Confirmation tick draws itself on the success screen. */
+.success-check {
+  animation: success-pop 0.5s var(--ease-reveal) both;
+}
+
+.success-tick {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
+}
+
+@keyframes success-pop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes tick-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Brand mark: the node pulses gently, matching the "agent online" language. */
+.nexora-pulse {
+  animation: mark-pulse 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes mark-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Staggered card entrance on grid pages. */
+.card-enter {
+  opacity: 0;
+  animation: reveal-rise 0.42s var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * 45ms);
+}
+
+.saved-pop {
     animation: none;
   }
 

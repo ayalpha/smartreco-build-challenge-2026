@@ -24,7 +24,7 @@
 {% endmacro %}
 
 
-{% macro thumbnail(item, height='h-36', eager=false) %}
+{% macro thumbnail(item, height='aspect-[16/9]', eager=false) %}
   {# Generated first-party cover art (committed to /static/img/courses). The CSS
      gradient cover remains as a graceful fallback for any row without one. #}
   {% set category = item.category if item is not mapping else item.get('category') %}
@@ -64,6 +64,7 @@
   {% set description = item.description if item is not mapping else item.get('description') %}
   {% set pitch = (item.get('pitch') or item.get('reason')) if item is mapping else '' %}
   {% set score = item.get('relevance_score') if item is mapping else None %}
+  {% set instructor = item.instructor if item is not mapping else item.get('instructor') %}
 
   <article class="group flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
     <a href="/product/{{ pid }}"
@@ -80,7 +81,7 @@
         {{ level_badge(level) }}
       </div>
 
-      <h3 class="text-[16px] font-semibold leading-snug tracking-[-0.01em] text-white">
+      <h3 class="line-clamp-2 min-h-[2.75rem] text-[16px] font-semibold leading-snug tracking-[-0.01em] text-white">
         <a href="/product/{{ pid }}"
            class="transition hover:text-signal-400"
            data-track-click="{{ pid }}"
@@ -98,12 +99,23 @@
         <p class="line-clamp-2 text-[13px] leading-relaxed text-mist-400">{{ description }}</p>
       {% endif %}
 
-      <div class="mt-auto flex items-end justify-between gap-3 pt-1">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {% if instructor %}
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-800 font-mono text-[9px] font-bold text-mist-300 ring-1 ring-ink-700">
+              {{ instructor.split(' ')[0][0] }}{{ instructor.split(' ')[-1][0] if ' ' in instructor else '' }}
+            </span>
+            <span class="truncate text-[11.5px] text-mist-400">{{ instructor }}</span>
+          </span>
+        {% endif %}
+        {% if rating %}{{ stars(rating) }}{% endif %}
+      </div>
+
+      <div class="mt-auto flex items-end justify-between gap-3 border-t border-ink-800 pt-3">
         <div class="space-y-1">
-          <p class="text-base font-bold text-white">{{ price | money }}</p>
+          <p class="text-[17px] font-bold tracking-[-0.01em] text-white">{{ price | money }}</p>
           <p class="flex items-center gap-2 font-mono text-[10px] text-mist-500">
             {% if duration %}<span>{{ duration }}</span>{% endif %}
-            {% if rating %}<span class="text-amber-400/90">★ {{ '%.1f' | format(rating|float) }}</span>{% endif %}
             {% if score is not none %}<span title="agent relevance score">rel {{ '%.2f' | format(score|float) }}</span>{% endif %}
           </p>
         </div>
@@ -118,6 +130,15 @@
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
                     stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button"
+                  data-cart-add="{{ pid }}"
+                  aria-label="Add {{ title }} to cart"
+                  class="cart-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+                    stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
           <a href="/product/{{ pid }}"
@@ -176,5 +197,74 @@
   } %}
   <span class="font-mono text-[10px] lowercase tracking-wider text-mist-500" title="trigger: {{ reason }}">
     trigger: {{ labels.get(reason, reason) }}
+  </span>
+{% endmacro %}
+
+
+{# ---------------------------------------------------------------------------
+  Brand mark — an inline SVG wordmark, not a raster file, so it stays crisp at
+  any size and inherits the theme. The glyph is an "N" cut from a hexagonal
+  node: a nod to the agent's graph, and readable at 20px.
+--------------------------------------------------------------------------- #}
+{% macro logo(size=32, wordmark=true) %}
+<span class="flex shrink-0 items-center gap-2.5">
+  <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 40 40" fill="none"
+       class="nexora-mark shrink-0" role="img" aria-label="Nexora">
+    <defs>
+      <linearGradient id="nx-g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#4ADE9A"/>
+        <stop offset="55%" stop-color="#22C98A"/>
+        <stop offset="100%" stop-color="#8B7CF6"/>
+      </linearGradient>
+    </defs>
+    <path d="M20 2.6 34.6 11v18L20 37.4 5.4 29V11z" fill="url(#nx-g)" fill-opacity="0.14"
+          stroke="url(#nx-g)" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M14.4 27.2V13.2l11.2 13.6V12.8" stroke="url(#nx-g)" stroke-width="2.9"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle class="nexora-pulse" cx="25.6" cy="12.8" r="2.7" fill="#4ADE9A"/>
+  </svg>
+  {% if wordmark %}
+    <span class="flex flex-col leading-none">
+      <span class="text-[16px] font-extrabold tracking-[-0.03em] text-white">Nexora</span>
+      <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.2em] text-mist-500 sm:block">by ay systum</span>
+    </span>
+  {% endif %}
+</span>
+{% endmacro %}
+
+
+{# Breadcrumb trail. `items` is [(label, href|None)]; the last item is current. #}
+{% macro breadcrumbs(items) %}
+<nav aria-label="Breadcrumb">
+  <ol class="flex flex-wrap items-center gap-1.5 font-mono text-[11px] lowercase tracking-wide text-mist-500">
+    {% for label, href in items %}
+      <li class="flex items-center gap-1.5">
+        {% if href %}
+          <a href="{{ href }}" class="transition hover:text-mist-200">{{ label }}</a>
+          <span class="text-ink-600" aria-hidden="true">/</span>
+        {% else %}
+          <span class="text-mist-300" aria-current="page">{{ label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endmacro %}
+
+
+{# Star rating with an accessible label. #}
+{% macro stars(rating, count=None) %}
+  {% set value = (rating | float) if rating else 0 %}
+  <span class="inline-flex items-center gap-1.5" role="img"
+        aria-label="Rated {{ '%.1f' | format(value) }} out of 5">
+    <span class="flex" aria-hidden="true">
+      {% for i in range(1, 6) %}
+        <svg width="12" height="12" viewBox="0 0 20 20" class="{{ 'text-amber-400' if value >= i - 0.25 else 'text-ink-600' }}">
+          <path fill="currentColor" d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z"/>
+        </svg>
+      {% endfor %}
+    </span>
+    <span class="font-mono text-[11px] tabular-nums text-mist-400">{{ '%.1f' | format(value) }}</span>
+    {% if count %}<span class="font-mono text-[10px] text-mist-500">({{ count }})</span>{% endif %}
   </span>
 {% endmacro %}

@@ -7,6 +7,6 @@ applicable, ``api_router`` (JSON endpoints under ``/api``).  They are wired up i
 
 from __future__ import annotations
 
-from app.routers import admin, assistant, auth, events, products, recommendations
+from app.routers import admin, assistant, auth, cart, events, products, recommendations
 
-__all__ = ["admin", "assistant", "auth", "events", "products", "recommendations"]
+__all__ = ["admin", "assistant", "auth", "cart", "events", "products", "recommendations"]

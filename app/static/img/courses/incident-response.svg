@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 447" width="800" height="447" role="img">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0E16"/>
+      <stop offset="100%" stop-color="#05070C"/>
+    </linearGradient>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#FFFFFF" stroke-opacity="0.028" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="haze" cx="70%" cy="42%" r="52%">
+      <stop offset="0%" stop-color="#22C98A" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#22C98A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="800" height="447" fill="url(#bg)"/>
+  <rect width="800" height="447" fill="url(#grid)"/>
+  <rect width="800" height="447" fill="url(#haze)"/>
+<polyline points="330,200.2 344,195.3 358,189.9 372,184.2 386,178.4 400,172.4 414,166.6 428,161.1 442,156.0 456,151.4 470,147.6 484,144.6 498,142.6 512,141.7 526,141.9 540,143.3 554,145.9 568,149.6 582,155.7 596,162.5 610,169.7 624,177.0 638,184.3 652,191.5 666,198.3 680,204.5 694,210.1 708,215.0 722,219.0 736,222.1 750,224.3 764,225.5 778,225.8" fill="none" stroke="#8B7CF6" stroke-opacity="0.40" stroke-width="1.5" stroke-linecap="round"/><polyline points="330,243.9 344,242.5 358,240.6 372,238.2 386,235.2 400,231.8 414,227.9 428,223.8 442,219.5 456,215.0 470,210.5 484,206.1 498,202.0 512,198.2 526,194.8 540,192.0 554,189.9 568,188.5 582,189.1 596,190.6 610,192.9 624,195.8 638,199.2 652,203.1 666,207.2 680,211.6 694,216.0 708,220.4 722,224.7 736,228.7 750,232.4 764,235.7 778,238.5" fill="none" stroke="#22C98A" stroke-opacity="0.85" stroke-width="2.4" stroke-linecap="round" filter="url(#glow)"/><polyline points="330,286.5 344,286.3 358,285.3 372,283.5 386,280.9 400,277.6 414,273.7 428,269.1 442,264.0 456,258.5 470,252.7 484,246.7 498,240.7 512,234.8 526,229.3 540,224.2 554,219.7 568,215.9 582,214.5 596,214.4 610,215.3 624,217.2 638,219.9 652,223.4 666,227.5 680,232.2 694,237.2 708,242.5 722,247.9 736,253.3 750,258.4 764,263.3 778,267.8" fill="none" stroke="#8B7CF6" stroke-opacity="0.40" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

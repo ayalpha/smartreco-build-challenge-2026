@@ -34,7 +34,7 @@ from app.database import init_db
 from app.dependencies import get_current_user_optional, render_page
 from app.logging_config import configure_logging
 from app.models.user import User
-from app.routers import admin, assistant, auth, events, products, recommendations
+from app.routers import admin, assistant, auth, cart, events, products, recommendations
 from app.scheduler.jobs import scheduler_status, shutdown_scheduler, start_scheduler
 from app.vector_store.qdrant_client import get_vector_store
 
@@ -159,6 +159,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(admin.router)
     app.include_router(assistant.router)
+    app.include_router(cart.router)
 
     # --- JSON API ---------------------------------------------------------
     app.include_router(auth.api_router)

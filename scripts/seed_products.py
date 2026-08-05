@@ -1,13 +1,13 @@
 """Idempotent catalog seeder.
 
-Loads 61 realistic AI / data / engineering courses into SQL **and** mirrors them
+Loads a curated 50 AI / data / engineering courses into SQL **and** mirrors them
 into Qdrant through the same dual-write path the admin UI uses.
 
 Idempotency
 -----------
 Courses are matched on ``title``: an existing row is updated in place (preserving
 its id, so recommendation history and event foreign keys stay valid) and a
-missing row is inserted.  Running this script five times leaves exactly 61
+missing row is inserted.  Running this script five times leaves exactly 50
 courses, five times.
 
 Usage
@@ -59,87 +59,71 @@ logger = logging.getLogger("scripts.seed_products")
 #: Course covers are first-party generated artwork committed to the repo — one
 #: coherent abstract-technical style across the whole catalog. No external
 #: hotlinks, no stock photos, nothing that can 404 or render something absurd.
-COVER_TEMPLATE = "/static/img/courses/{slug}.jpg"
+#: Raster covers (.jpg) are AI-generated; the remainder are deterministic .svg
+#: covers produced by ``scripts/generate_covers.py`` in the same visual language.
+COVER_URL = "/static/img/courses/{filename}"
 COVER_DIR = PROJECT_ROOT / "app" / "static" / "img" / "courses"
+
+#: Extensions probed, in order of preference.
+COVER_EXTENSIONS = (".jpg", ".svg")
 
 #: Fallback used only if a title is not in :data:`COVER_BY_TITLE`.
 DEFAULT_COVER = "agentic-ai"
 
-#: Topic-accurate cover per course. Several courses legitimately share a cover
-#: when they share a subject (e.g. the two observability courses) — the artwork
-#: is chosen by topic, not by row, so nothing ever looks mismatched.
+#: Every curated course maps to its OWN cover — 50 courses, 50 distinct
+#: images. Raster covers are AI-generated art; the rest are deterministic
+#: SVGs from scripts/generate_covers.py in the same visual language.
 COVER_BY_TITLE: dict[str, str] = {
-    # --- Agentic AI -------------------------------------------------------
-    "Building Production Agents with LangGraph": "agentic-ai",
-    "Agentic RAG: Retrieval That Reasons": "rag-retrieval",
-    "Multi-Agent Systems: Coordination Patterns": "multi-agent",
-    "LLM Observability with LangSmith": "llm-observability",
-    "Prompt Engineering for Structured Output": "prompt-engineering",
-    "Evaluation-Driven LLM Development": "ai-evaluation",
-    "RAG Systems in Production": "rag-retrieval",
-    "Tool Use and Function Calling for Agents": "api-design",
-    "Prompt Injection and LLM Security": "web-security",
-    # --- Machine Learning -------------------------------------------------
-    "Machine Learning Foundations with scikit-learn": "machine-learning",
-    "Feature Engineering That Actually Moves Metrics": "feature-engineering",
-    "Recommender Systems from Scratch": "recommender-systems",
-    "MLOps: Shipping Models That Survive Contact With Users": "mlops",
-    "Statistics for Machine Learning Practitioners": "statistics",
-    "Time-Series Forecasting at Scale": "statistics",
-    "Gradient Boosting in Depth: XGBoost and LightGBM": "machine-learning",
-    "Experiment Design and Online A/B Testing": "ai-evaluation",
-    # --- Deep Learning ----------------------------------------------------
-    "Deep Learning with PyTorch: Fundamentals to Fine-Tuning": "deep-learning",
-    "Transformers and Attention, Implemented Line by Line": "transformers",
-    "Fine-Tuning LLMs with LoRA and QLoRA": "fine-tuning",
-    "Computer Vision in Production": "computer-vision",
-    "Distributed Training with FSDP and DeepSpeed": "deep-learning",
-    "Diffusion Models: Theory and Practice": "computer-vision",
-    # --- Data Engineering -------------------------------------------------
-    "Data Engineering with dbt and Modern SQL": "data-engineering",
-    "Apache Airflow: Orchestration You Can Debug at 3am": "data-engineering",
-    "Streaming Data with Kafka and Flink": "streaming",
-    "Vector Databases and Semantic Search at Scale": "vector-database",
-    "Analytics Engineering with Python and Polars": "data-engineering",
-    "Analytics at Speed with DuckDB": "data-engineering",
-    "Data Contracts and Quality Engineering": "ai-evaluation",
-    "Lakehouse Architecture with Apache Iceberg": "data-engineering",
-    # --- Python -----------------------------------------------------------
-    "Modern Python: Type Hints, Async and Packaging": "python",
-    "FastAPI in Production": "api-design",
-    "Testing Python: Pytest, Fixtures and Property-Based Testing": "ai-evaluation",
-    "Python Performance: Profiling and Optimisation": "python",
-    "Rust for Python Engineers": "python",
-    # --- JavaScript -------------------------------------------------------
-    "JavaScript Deep Dive: The Event Loop and Beyond": "javascript",
-    "TypeScript for Large Codebases": "javascript",
-    "Modern React Patterns and Server Components": "web-development",
-    # --- Web Development --------------------------------------------------
-    "Full-Stack Web Development with Modern Tooling": "web-development",
-    "API Design: REST, GraphQL and When to Use Which": "api-design",
-    "Web Security Essentials for Application Developers": "web-security",
-    "Frontend Performance: Core Web Vitals in Practice": "web-development",
-    "Accessibility Engineering for Web Applications": "web-development",
-    "Real-Time Web with WebSockets and SSE": "streaming",
-    # --- DevOps -----------------------------------------------------------
-    "Docker and Containers: A Working Mental Model": "devops-containers",
-    "Kubernetes for Application Teams": "kubernetes",
-    "CI/CD with GitHub Actions": "mlops",
-    "Observability: Logs, Metrics and Traces": "observability",
-    "Platform Engineering and Internal Developer Portals": "infrastructure-as-code",
-    "Incident Response and On-Call Engineering": "observability",
-    # --- Cloud ------------------------------------------------------------
-    "Cloud Architecture Fundamentals": "cloud",
-    "Infrastructure as Code with Terraform": "infrastructure-as-code",
-    "Serverless Patterns and Anti-Patterns": "serverless",
-    "Cloud Cost Engineering and FinOps": "cloud",
-    "Event-Driven Architecture on the Cloud": "streaming",
-    # --- Career Skills ----------------------------------------------------
-    "Technical Interviews for Data and ML Roles": "career-skills",
-    "Writing for Engineers: Design Docs and Postmortems": "technical-writing",
-    "From Engineer to Tech Lead": "career-skills",
-    "System Design Interviews for Senior Engineers": "cloud",
-    "Building a Portfolio That Gets You Hired": "career-skills",
+    'Building Production Agents with LangGraph': 'agentic-ai',
+    'Agentic RAG: Retrieval That Reasons': 'rag-retrieval',
+    'Multi-Agent Systems: Coordination Patterns': 'multi-agent',
+    'LLM Observability with LangSmith': 'llm-observability',
+    'Prompt Engineering for Structured Output': 'prompt-engineering',
+    'Evaluation-Driven LLM Development': 'ai-evaluation',
+    'RAG Systems in Production': 'rag-production',
+    'Machine Learning Foundations with scikit-learn': 'machine-learning',
+    'Feature Engineering That Actually Moves Metrics': 'feature-engineering',
+    'Recommender Systems from Scratch': 'recommender-systems',
+    'MLOps: Shipping Models That Survive Contact With Users': 'mlops',
+    'Statistics for Machine Learning Practitioners': 'statistics',
+    'Gradient Boosting in Depth: XGBoost and LightGBM': 'gradient-boosting',
+    'Deep Learning with PyTorch: Fundamentals to Fine-Tuning': 'deep-learning',
+    'Transformers and Attention, Implemented Line by Line': 'transformers',
+    'Fine-Tuning LLMs with LoRA and QLoRA': 'fine-tuning',
+    'Computer Vision in Production': 'computer-vision',
+    'Distributed Training with FSDP and DeepSpeed': 'distributed-training',
+    'Data Engineering with dbt and Modern SQL': 'data-engineering',
+    'Apache Airflow: Orchestration You Can Debug at 3am': 'airflow',
+    'Streaming Data with Kafka and Flink': 'streaming',
+    'Vector Databases and Semantic Search at Scale': 'vector-database',
+    'Analytics at Speed with DuckDB': 'duckdb',
+    'Lakehouse Architecture with Apache Iceberg': 'lakehouse',
+    'Modern Python: Type Hints, Async and Packaging': 'python',
+    'FastAPI in Production': 'fastapi',
+    'Testing Python: Pytest, Fixtures and Property-Based Testing': 'testing-python',
+    'Rust for Python Engineers': 'rust',
+    'JavaScript Deep Dive: The Event Loop and Beyond': 'javascript',
+    'TypeScript for Large Codebases': 'typescript',
+    'Modern React Patterns and Server Components': 'react',
+    'Full-Stack Web Development with Modern Tooling': 'web-development',
+    'API Design: REST, GraphQL and When to Use Which': 'api-design',
+    'Web Security Essentials for Application Developers': 'web-security',
+    'Frontend Performance: Core Web Vitals in Practice': 'frontend-performance',
+    'Accessibility Engineering for Web Applications': 'accessibility',
+    'Docker and Containers: A Working Mental Model': 'devops-containers',
+    'Kubernetes for Application Teams': 'kubernetes',
+    'CI/CD with GitHub Actions': 'cicd',
+    'Observability: Logs, Metrics and Traces': 'observability',
+    'Incident Response and On-Call Engineering': 'incident-response',
+    'Cloud Architecture Fundamentals': 'cloud',
+    'Infrastructure as Code with Terraform': 'infrastructure-as-code',
+    'Serverless Patterns and Anti-Patterns': 'serverless',
+    'Cloud Cost Engineering and FinOps': 'finops',
+    'Event-Driven Architecture on the Cloud': 'event-driven',
+    'Technical Interviews for Data and ML Roles': 'career-skills',
+    'Writing for Engineers: Design Docs and Postmortems': 'technical-writing',
+    'From Engineer to Tech Lead': 'tech-lead',
+    'System Design Interviews for Senior Engineers': 'system-design',
 }
 
 DEMO_PASSWORD = "smartreco123"
@@ -151,28 +135,30 @@ def _cover_slug(title: str) -> str:
 
 
 def _thumbnail(title: str) -> str:
-    """Build the static path to this course's generated cover image.
+    """Build the static path to this course's cover, resolving .jpg or .svg.
 
     Falls back to :data:`DEFAULT_COVER` for any title without an explicit
-    mapping, so a newly added course always renders a real image rather than a
-    broken one.
+    mapping or with a missing file, so a course always renders a real image
+    rather than a broken one.
     """
     slug = _cover_slug(title)
-    if COVER_DIR.exists() and not (COVER_DIR / f"{slug}.jpg").exists():
-        logger.warning("Cover %s.jpg missing for %r — using %s", slug, title, DEFAULT_COVER)
-        slug = DEFAULT_COVER
-    return COVER_TEMPLATE.format(slug=slug)
+    for candidate in (slug, DEFAULT_COVER):
+        for extension in COVER_EXTENSIONS:
+            if not COVER_DIR.exists() or (COVER_DIR / f"{candidate}{extension}").exists():
+                if candidate != slug:
+                    logger.warning("Cover for %r missing — falling back to %s", title, candidate)
+                return COVER_URL.format(filename=f"{candidate}{extension}")
+    return COVER_URL.format(filename=f"{DEFAULT_COVER}.jpg")
 
 
 # --------------------------------------------------------------------------- #
 # Catalog                                                                     #
 # --------------------------------------------------------------------------- #
 
-#: 61 courses across the ten categories the brief calls for.  Descriptions are
+#: 50 curated courses across the ten categories the brief calls for.  Descriptions are
 #: written as prose because they are embedded for semantic retrieval — vague copy
 #: measurably degrades recommendation quality.
 CATALOG: list[dict[str, Any]] = [
-    # ------------------------------------------------------------ Agentic AI
     {
         "title": "Building Production Agents with LangGraph",
         "category": "Agentic AI",
@@ -255,8 +241,6 @@ CATALOG: list[dict[str, Any]] = [
             "survives the model wrapping its answer in prose or a code fence."
         ),
     },
-
-    # -------------------------------------------------- Machine Learning
     {
         "title": "Machine Learning Foundations with scikit-learn",
         "category": "Machine Learning",
@@ -337,8 +321,6 @@ CATALOG: list[dict[str, Any]] = [
             "who need to interpret an experiment, not to prove theorems."
         ),
     },
-
-    # ------------------------------------------------------ Deep Learning
     {
         "title": "Deep Learning with PyTorch: Fundamentals to Fine-Tuning",
         "category": "Deep Learning",
@@ -403,8 +385,6 @@ CATALOG: list[dict[str, Any]] = [
             "the day your camera angle changes."
         ),
     },
-
-    # --------------------------------------------------- Data Engineering
     {
         "title": "Data Engineering with dbt and Modern SQL",
         "category": "Data Engineering",
@@ -470,23 +450,6 @@ CATALOG: list[dict[str, Any]] = [
         ),
     },
     {
-        "title": "Analytics Engineering with Python and Polars",
-        "category": "Data Engineering",
-        "skill_level": "beginner",
-        "price": 55.0,
-        "duration": "9 hours",
-        "instructor": "Elena Vasquez",
-        "rating": 4.4,
-        "tags": ["polars", "pandas", "dataframes", "analytics", "performance"],
-        "description": (
-            "Move beyond pandas defaults. Lazy evaluation, expression-based transformations, "
-            "columnar memory layout and predicate pushdown — plus honest benchmarks showing where "
-            "Polars wins, where DuckDB wins, and where pandas is still the right answer."
-        ),
-    },
-
-    # ------------------------------------------------------------- Python
-    {
         "title": "Modern Python: Type Hints, Async and Packaging",
         "category": "Python",
         "skill_level": "intermediate",
@@ -533,8 +496,6 @@ CATALOG: list[dict[str, Any]] = [
             "testing with Hypothesis, and coverage read as a diagnostic rather than a target."
         ),
     },
-
-    # --------------------------------------------------------- JavaScript
     {
         "title": "JavaScript Deep Dive: The Event Loop and Beyond",
         "category": "JavaScript",
@@ -581,8 +542,6 @@ CATALOG: list[dict[str, Any]] = [
             "on your own laptop."
         ),
     },
-
-    # -------------------------------------------------- Web Development
     {
         "title": "Full-Stack Web Development with Modern Tooling",
         "category": "Web Development",
@@ -631,8 +590,6 @@ CATALOG: list[dict[str, Any]] = [
             "a design review."
         ),
     },
-
-    # -------------------------------------------------------------- DevOps
     {
         "title": "Docker and Containers: A Working Mental Model",
         "category": "DevOps",
@@ -695,8 +652,6 @@ CATALOG: list[dict[str, Any]] = [
             "error budgets, and alerts that page a human only when a human is needed."
         ),
     },
-
-    # --------------------------------------------------------------- Cloud
     {
         "title": "Cloud Architecture Fundamentals",
         "category": "Cloud",
@@ -743,8 +698,6 @@ CATALOG: list[dict[str, Any]] = [
             "queue-based load levelling, and the observability gaps you have to close yourself."
         ),
     },
-
-    # ------------------------------------------------------- Career Skills
     {
         "title": "Technical Interviews for Data and ML Roles",
         "category": "Career Skills",
@@ -792,12 +745,6 @@ CATALOG: list[dict[str, Any]] = [
             "constantly interrupted."
         ),
     },
-
-    # ======================================================================
-    # Catalog expansion — 20 further courses across the same ten disciplines.
-    # ======================================================================
-
-    # ------------------------------------------------------------ Agentic AI
     {
         "title": "Evaluation-Driven LLM Development",
         "category": "Agentic AI",
@@ -829,53 +776,6 @@ CATALOG: list[dict[str, Any]] = [
         ),
     },
     {
-        "title": "Tool Use and Function Calling for Agents",
-        "category": "Agentic AI",
-        "skill_level": "intermediate",
-        "price": 79.0,
-        "duration": "9 hours",
-        "instructor": "Priya Raghavan",
-        "rating": 4.7,
-        "tags": ["tool use", "function calling", "agents", "schemas", "reliability"],
-        "description": (
-            "Give an agent hands without giving it a loaded gun. Schema design for tools, argument "
-            "validation, idempotency, permissioning, and retry semantics when a tool call fails "
-            "halfway. Ends with an agent that can act on real systems safely."
-        ),
-    },
-    {
-        "title": "Prompt Injection and LLM Security",
-        "category": "Agentic AI",
-        "skill_level": "advanced",
-        "price": 95.0,
-        "duration": "8 hours",
-        "instructor": "Ahmed Rahal",
-        "rating": 4.8,
-        "tags": ["security", "prompt injection", "llm", "sandboxing", "threat modelling"],
-        "description": (
-            "Untrusted text reaching a model is an attack surface. Direct and indirect prompt "
-            "injection, exfiltration through tool calls, sandboxing untrusted content, and the "
-            "trust-boundary discipline that keeps a retrieval pipeline from becoming an exploit."
-        ),
-    },
-
-    # ------------------------------------------------------ Machine Learning
-    {
-        "title": "Time-Series Forecasting at Scale",
-        "category": "Machine Learning",
-        "skill_level": "intermediate",
-        "price": 85.0,
-        "duration": "14 hours",
-        "instructor": "Sofia Duarte",
-        "rating": 4.6,
-        "tags": ["time series", "forecasting", "seasonality", "backtesting", "prophet"],
-        "description": (
-            "Forecasting breaks the assumptions most ML training relies on. Proper temporal "
-            "cross-validation, seasonality and holiday effects, hierarchical reconciliation across "
-            "thousands of series, and honest interval estimates rather than a single hopeful line."
-        ),
-    },
-    {
         "title": "Gradient Boosting in Depth: XGBoost and LightGBM",
         "category": "Machine Learning",
         "skill_level": "intermediate",
@@ -890,23 +790,6 @@ CATALOG: list[dict[str, Any]] = [
             "categorical handling, and reading SHAP values without over-reading them."
         ),
     },
-    {
-        "title": "Experiment Design and Online A/B Testing",
-        "category": "Machine Learning",
-        "skill_level": "intermediate",
-        "price": 79.0,
-        "duration": "10 hours",
-        "instructor": "Elena Vasquez",
-        "rating": 4.7,
-        "tags": ["ab testing", "experimentation", "statistics", "metrics", "causal"],
-        "description": (
-            "Offline metrics lie; experiments are how you find out. Randomisation units, sample "
-            "size and power, guardrail metrics, sequential testing pitfalls, and interpreting a "
-            "result that disagrees with your offline evaluation."
-        ),
-    },
-
-    # --------------------------------------------------------- Deep Learning
     {
         "title": "Distributed Training with FSDP and DeepSpeed",
         "category": "Deep Learning",
@@ -923,23 +806,6 @@ CATALOG: list[dict[str, Any]] = [
         ),
     },
     {
-        "title": "Diffusion Models: Theory and Practice",
-        "category": "Deep Learning",
-        "skill_level": "advanced",
-        "price": 109.0,
-        "duration": "13 hours",
-        "instructor": "Lucas Meyer",
-        "rating": 4.6,
-        "tags": ["diffusion", "generative", "sampling", "unet", "guidance"],
-        "description": (
-            "Build a diffusion model from the forward noising process up. Denoising objectives, "
-            "sampler families and their speed-quality trade-offs, classifier-free guidance, and "
-            "fine-tuning a pretrained model on a small custom dataset without wrecking it."
-        ),
-    },
-
-    # ------------------------------------------------------ Data Engineering
-    {
         "title": "Analytics at Speed with DuckDB",
         "category": "Data Engineering",
         "skill_level": "beginner",
@@ -952,21 +818,6 @@ CATALOG: list[dict[str, Any]] = [
             "An entire analytics engine in a single process, and often faster than the cluster you "
             "were about to provision. Columnar execution, querying Parquet in place, larger-than-"
             "memory workloads, and where DuckDB stops being the right answer."
-        ),
-    },
-    {
-        "title": "Data Contracts and Quality Engineering",
-        "category": "Data Engineering",
-        "skill_level": "intermediate",
-        "price": 79.0,
-        "duration": "10 hours",
-        "instructor": "Nadia Hussain",
-        "rating": 4.6,
-        "tags": ["data quality", "contracts", "testing", "lineage", "governance"],
-        "description": (
-            "Most data incidents are contract violations nobody wrote down. Schema contracts "
-            "between producers and consumers, freshness and volume expectations, lineage-aware "
-            "alerting, and a quality framework that fails the pipeline rather than the dashboard."
         ),
     },
     {
@@ -984,23 +835,6 @@ CATALOG: list[dict[str, Any]] = [
             "time-travel queries that make debugging a bad load tractable."
         ),
     },
-
-    # ----------------------------------------------------------------- Python
-    {
-        "title": "Python Performance: Profiling and Optimisation",
-        "category": "Python",
-        "skill_level": "intermediate",
-        "price": 69.0,
-        "duration": "10 hours",
-        "instructor": "Tomas Nowak",
-        "rating": 4.7,
-        "tags": ["performance", "profiling", "cython", "memory", "optimisation"],
-        "description": (
-            "Measure before you optimise, then optimise the thing you measured. CPU and memory "
-            "profiling, algorithmic wins versus micro-optimisation, vectorisation, native "
-            "extensions, and how far you can get before reaching for another language."
-        ),
-    },
     {
         "title": "Rust for Python Engineers",
         "category": "Python",
@@ -1016,8 +850,6 @@ CATALOG: list[dict[str, Any]] = [
             "and shipping a PyO3 extension that speeds up a real hot path in your codebase."
         ),
     },
-
-    # ------------------------------------------------------------ JavaScript
     {
         "title": "Modern React Patterns and Server Components",
         "category": "JavaScript",
@@ -1033,8 +865,6 @@ CATALOG: list[dict[str, Any]] = [
             "and the rendering model that explains why your component ran three times."
         ),
     },
-
-    # -------------------------------------------------------- Web Development
     {
         "title": "Accessibility Engineering for Web Applications",
         "category": "Web Development",
@@ -1048,38 +878,6 @@ CATALOG: list[dict[str, Any]] = [
             "Accessibility is a set of engineering constraints, not a checklist bolted on at the "
             "end. Semantic structure, keyboard operability, ARIA for dynamic regions, focus "
             "management in modals, and testing with an actual screen reader rather than a linter."
-        ),
-    },
-    {
-        "title": "Real-Time Web with WebSockets and SSE",
-        "category": "Web Development",
-        "skill_level": "intermediate",
-        "price": 75.0,
-        "duration": "10 hours",
-        "instructor": "Lucas Meyer",
-        "rating": 4.5,
-        "tags": ["websockets", "sse", "real time", "scaling", "reconnection"],
-        "description": (
-            "Live updates look trivial in a demo and get hard at connection number ten thousand. "
-            "Choosing between polling, SSE and WebSockets, reconnection with backoff, message "
-            "ordering and replay, and horizontal scaling with a pub/sub backplane."
-        ),
-    },
-
-    # ----------------------------------------------------------------- DevOps
-    {
-        "title": "Platform Engineering and Internal Developer Portals",
-        "category": "DevOps",
-        "skill_level": "advanced",
-        "price": 109.0,
-        "duration": "14 hours",
-        "instructor": "Kwame Mensah",
-        "rating": 4.5,
-        "tags": ["platform engineering", "backstage", "golden paths", "developer experience"],
-        "description": (
-            "Platform teams succeed by making the right thing the easy thing. Golden paths and "
-            "paved roads, service templates and scaffolding, a service catalogue people actually "
-            "keep current, and measuring developer experience instead of guessing at it."
         ),
     },
     {
@@ -1097,8 +895,6 @@ CATALOG: list[dict[str, Any]] = [
             "protects sleep, and blameless postmortems that produce fixes instead of blame."
         ),
     },
-
-    # ------------------------------------------------------------------ Cloud
     {
         "title": "Cloud Cost Engineering and FinOps",
         "category": "Cloud",
@@ -1129,8 +925,6 @@ CATALOG: list[dict[str, Any]] = [
             "workflows, dead-letter handling, and debugging a flow with no single call stack."
         ),
     },
-
-    # ---------------------------------------------------------- Career Skills
     {
         "title": "System Design Interviews for Senior Engineers",
         "category": "Career Skills",
@@ -1144,21 +938,6 @@ CATALOG: list[dict[str, Any]] = [
             "Senior system design interviews test judgement under ambiguity, not memorised "
             "diagrams. Requirement clarification, capacity estimation, explicit trade-offs, "
             "failure modes, and narrating your reasoning so the interviewer can follow it."
-        ),
-    },
-    {
-        "title": "Building a Portfolio That Gets You Hired",
-        "category": "Career Skills",
-        "skill_level": "beginner",
-        "price": 39.0,
-        "duration": "6 hours",
-        "instructor": "Marta Alves",
-        "rating": 4.5,
-        "tags": ["portfolio", "career", "projects", "writing", "github"],
-        "description": (
-            "Three finished projects with real write-ups beat thirty abandoned repositories. "
-            "Choosing projects that demonstrate judgement, writing a README a hiring manager will "
-            "actually read, and framing your work as decisions made rather than tools used."
         ),
     },
 ]

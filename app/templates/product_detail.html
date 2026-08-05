@@ -11,11 +11,12 @@
 {% endblock %}
 
 {% block content %}
-<nav class="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-mist-500" aria-label="Breadcrumb">
-  <a href="/catalog" class="transition hover:text-mist-400">Catalog</a>
-  <span>/</span>
-  <a href="/catalog?category={{ product.category | urlencode }}" class="transition hover:text-mist-400">{{ product.category }}</a>
-</nav>
+{{ ui.breadcrumbs([
+  ('Home', '/'),
+  ('Catalog', '/catalog'),
+  (product.category, '/catalog?category=' ~ (product.category | urlencode)),
+  (product.title, None)
+]) }}
 
 <div class="mt-6 grid gap-10 lg:grid-cols-3">
 
@@ -48,9 +49,7 @@
       {% if product.duration %}
         <span class="rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-mist-400">{{ product.duration }}</span>
       {% endif %}
-      {% if product.rating %}
-        <span class="font-mono text-[11px] text-amber-400">★ {{ '%.1f' | format(product.rating) }}</span>
-      {% endif %}
+      {% if product.rating %}{{ ui.stars(product.rating) }}{% endif %}
     </div>
 
     <h1 class="mt-3 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">{{ product.title }}</h1>
@@ -86,12 +85,28 @@
         <p class="mt-1 text-xs text-mist-500">Lifetime access · certificate on completion</p>
 
         <button type="button"
+                data-cart-buy="{{ product.id }}"
+                class="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-signal-500 px-4 py-3 text-[15px] font-bold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_22px_rgba(34,201,138,.3)] active:scale-[0.98]">
+          Buy now
+        </button>
+
+        <button type="button"
+                data-cart-add="{{ product.id }}"
+                class="cart-btn mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-950 px-4 py-2.5 text-sm font-semibold text-mist-100 transition hover:border-signal-500/50 hover:bg-ink-900 active:scale-[0.98]">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+                  stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-cart-label>Add to cart</span>
+        </button>
+
+        <button type="button"
                 data-save-product="{{ product.id }}"
                 data-save-title="{{ product.title }}"
                 data-save-state="unsaved"
                 data-save-label="Save for later"
                 aria-pressed="false"
-                class="save-btn save-btn--wide mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
+                class="save-btn save-btn--wide mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-700 px-4 py-2.5 text-sm font-medium text-mist-300 transition hover:border-iris-500/50 hover:text-iris-300 active:scale-[0.98]">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
                   stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>

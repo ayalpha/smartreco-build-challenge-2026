@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Cart · {{ app_name }}{% endblock %}
+
+{% block content %}
+{{ ui.breadcrumbs([('Home', '/'), ('Cart', None)]) }}
+
+<header class="mt-5">
+  <h1 class="text-3xl font-bold tracking-[-0.02em] text-white sm:text-4xl">Your cart</h1>
+  <p class="mt-2 text-sm text-mist-500">
+    Review your selection, then continue to checkout.
+  </p>
+</header>
+
+<div id="cart-root" class="mt-8">
+
+  <!-- Empty state -->
+  <div id="cart-empty" class="hidden">
+    {{ ui.empty_state(
+      'Your cart is empty',
+      'Browse the catalog and add a course. Everything you add also sharpens what the agent recommends next.',
+      '/catalog', 'Browse courses') }}
+  </div>
+
+  <!-- Populated -->
+  <div id="cart-body" class="hidden grid gap-8 lg:grid-cols-[1fr,360px]">
+    <section aria-labelledby="cart-items-heading">
+      <h2 id="cart-items-heading" class="sr-only">Cart items</h2>
+      <ul id="cart-lines" class="space-y-3"></ul>
+
+      <div class="mt-6 flex items-center justify-between gap-4">
+        <a href="/catalog" class="text-sm font-medium text-mist-400 underline decoration-ink-600 underline-offset-4 transition hover:text-mist-100">
+          ← Continue browsing
+        </a>
+        <button type="button" id="cart-clear"
+                class="rounded-md border border-ink-700 px-3.5 py-2 text-xs font-semibold text-mist-400 transition hover:border-rose-500/40 hover:text-rose-300">
+          Clear cart
+        </button>
+      </div>
+    </section>
+
+    <!-- Order summary -->
+    <aside>
+      <div class="sticky top-24 rounded-2xl border border-ink-700/70 bg-ink-900 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
+        <h2 class="text-sm font-bold text-white">Order summary</h2>
+        <dl class="mt-4 space-y-2.5 text-sm">
+          <div class="flex justify-between gap-3">
+            <dt class="text-mist-400">Subtotal <span id="cart-units" class="text-mist-500"></span></dt>
+            <dd id="cart-subtotal" class="font-medium tabular-nums text-mist-100">$0.00</dd>
+          </div>
+          <div class="flex justify-between gap-3">
+            <dt class="text-mist-400">Estimated tax</dt>
+            <dd id="cart-tax" class="font-medium tabular-nums text-mist-100">$0.00</dd>
+          </div>
+          <div class="flex justify-between gap-3 border-t border-ink-700/70 pt-3">
+            <dt class="font-semibold text-white">Total</dt>
+            <dd id="cart-total" class="text-lg font-bold tabular-nums text-white">$0.00</dd>
+          </div>
+        </dl>
+
+        <a href="/checkout"
+           class="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-signal-500 px-4 py-3 text-sm font-bold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_22px_rgba(34,201,138,.3)] active:scale-[0.98]">
+          Proceed to checkout →
+        </a>
+
+        <ul class="mt-4 space-y-1.5 border-t border-ink-700/70 pt-4 text-xs text-mist-500">
+          {% for line in ['Lifetime access to every course', 'Certificate on completion', '30-day refund window'] %}
+            <li class="flex items-start gap-2">
+              <span class="mt-0.5 text-signal-400" aria-hidden="true">✓</span> {{ line }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+{# Catalog index so the cart can resolve ids to live titles and prices. #}
+<script type="application/json" id="catalog-data">{{ catalog | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Cart page rendering. Cart state itself lives in cart.js / localStorage.
+  //
+  // Deferred to DOMContentLoaded on purpose: cart.js is loaded with `defer`, so
+  // an inline script would run BEFORE it and find window.nexoraCart undefined.
+  // Deferred scripts always finish before DOMContentLoaded fires.
+  document.addEventListener('DOMContentLoaded', function () {
+    const cart = window.nexoraCart;
+    if (!cart) return;
+
+    const el = {
+      empty: document.getElementById('cart-empty'),
+      body: document.getElementById('cart-body'),
+      lines: document.getElementById('cart-lines'),
+      subtotal: document.getElementById('cart-subtotal'),
+      tax: document.getElementById('cart-tax'),
+      total: document.getElementById('cart-total'),
+      units: document.getElementById('cart-units'),
+      clear: document.getElementById('cart-clear'),
+    };
+
+    function esc(v) {
+      return String(v === null || v === undefined ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function lineMarkup(line) {
+      const cover = line.thumbnail_url
+        ? '<img src="' + esc(line.thumbnail_url) + '" alt="" aria-hidden="true" loading="lazy" ' +
+          'class="h-20 w-32 shrink-0 rounded-lg object-cover">'
+        : '<div class="h-20 w-32 shrink-0 rounded-lg bg-ink-800"></div>';
+      return '<li class="reveal-child flex flex-col gap-4 rounded-xl border border-ink-700/70 bg-ink-900 p-4 sm:flex-row sm:items-center">' +
+        '<a href="/product/' + line.id + '" class="shrink-0">' + cover + '</a>' +
+        '<div class="min-w-0 flex-1">' +
+          '<a href="/product/' + line.id + '" class="block text-[15px] font-semibold leading-snug text-white transition hover:text-signal-400">' +
+            esc(line.title) + '</a>' +
+          '<p class="mt-1 font-mono text-[10px] lowercase tracking-wide text-mist-500">' +
+            esc(line.category || '') + (line.skill_level ? ' · ' + esc(line.skill_level) : '') +
+            (line.duration ? ' · ' + esc(line.duration) : '') + '</p>' +
+          (line.instructor ? '<p class="mt-1 text-xs text-mist-400">' + esc(line.instructor) + '</p>' : '') +
+        '</div>' +
+        '<div class="flex items-center gap-4">' +
+          '<div class="flex items-center rounded-md border border-ink-700">' +
+            '<button type="button" data-qty-dec="' + line.id + '" aria-label="Decrease quantity" ' +
+              'class="grid h-8 w-8 place-items-center text-mist-400 transition hover:text-white">−</button>' +
+            '<span class="w-8 text-center font-mono text-sm tabular-nums text-mist-100">' + line.qty + '</span>' +
+            '<button type="button" data-qty-inc="' + line.id + '" aria-label="Increase quantity" ' +
+              'class="grid h-8 w-8 place-items-center text-mist-400 transition hover:text-white">+</button>' +
+          '</div>' +
+          '<span class="w-20 text-right font-bold tabular-nums text-white">' + cart.money(line.lineTotal) + '</span>' +
+          '<button type="button" data-cart-remove="' + line.id + '" aria-label="Remove ' + esc(line.title) + '" ' +
+            'class="grid h-8 w-8 place-items-center rounded-md border border-ink-700 text-mist-500 transition hover:border-rose-500/40 hover:text-rose-300">✕</button>' +
+        '</div>' +
+      '</li>';
+    }
+
+    function render() {
+      const s = cart.summary();
+      const has = s.lines.length > 0;
+      el.empty.classList.toggle('hidden', has);
+      el.body.classList.toggle('hidden', !has);
+      if (!has) return;
+
+      el.lines.innerHTML = s.lines.map(lineMarkup).join('');
+      el.lines.querySelectorAll('.reveal-child').forEach(function (n, i) {
+        n.style.setProperty('--stagger', i);
+      });
+      el.subtotal.textContent = cart.money(s.subtotal);
+      el.tax.textContent = cart.money(s.tax);
+      el.total.textContent = cart.money(s.total);
+      el.units.textContent = '(' + s.units + ' item' + (s.units === 1 ? '' : 's') + ')';
+    }
+
+    document.addEventListener('click', function (event) {
+      const t = event.target instanceof Element ? event.target : null;
+      if (!t) return;
+      const rm = t.closest('[data-cart-remove]');
+      const inc = t.closest('[data-qty-inc]');
+      const dec = t.closest('[data-qty-dec]');
+      if (rm) { cart.remove(rm.dataset.cartRemove); render(); }
+      else if (inc) {
+        const id = parseInt(inc.dataset.qtyInc, 10);
+        const cur = cart.read().find(function (i) { return i.id === id; });
+        cart.setQty(id, (cur ? cur.qty : 1) + 1); render();
+      } else if (dec) {
+        const id = parseInt(dec.dataset.qtyDec, 10);
+        const cur = cart.read().find(function (i) { return i.id === id; });
+        cart.setQty(id, (cur ? cur.qty : 1) - 1); render();
+      }
+    });
+
+    if (el.clear) {
+      el.clear.addEventListener('click', function () { cart.clear(); render(); });
+    }
+
+    render();
+  });
+</script>
+{% endblock %}

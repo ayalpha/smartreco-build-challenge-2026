@@ -25,9 +25,11 @@
   'Career Skills': 'The leverage nobody teaches: writing, interviews, leadership.'
 } %}
 
-<header class="flex flex-wrap items-end justify-between gap-4">
+{{ ui.breadcrumbs([('Home', '/'), ('Catalog', None)]) }}
+
+<header class="mt-5 flex flex-wrap items-end justify-between gap-4">
   <div>
-    <h1 class="text-3xl font-bold tracking-[-0.02em] text-white">Course catalog</h1>
+    <h1 class="text-3xl font-bold tracking-[-0.02em] text-white sm:text-4xl">Course catalog</h1>
     <p class="mt-1.5 text-sm text-mist-500">
       {{ total }} course{{ '' if total == 1 else 's' }}
       {% if filters.q %}matching “{{ filters.q }}”{% endif %}
@@ -118,7 +120,9 @@
 {% if products %}
   <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
     {% for product in products %}
-      {{ ui.product_card(product, source=('search' if filters.q else 'catalog')) }}
+      <div class="card-enter" style="--stagger: {{ loop.index0 }}">
+        {{ ui.product_card(product, source=('search' if filters.q else 'catalog')) }}
+      </div>
     {% endfor %}
   </div>
 

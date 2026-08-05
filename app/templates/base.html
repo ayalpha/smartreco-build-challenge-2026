@@ -6,6 +6,7 @@
   REASONING colour. Machine voice = lowercase JetBrains Mono; human voice =
   Inter. AI-generated surfaces carry the .ai-surface gradient top border.
 --------------------------------------------------------------------------- #}
+{% import "_components.html" as ui %}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -71,16 +72,8 @@
 <!-- ============================== NAVIGATION ============================== -->
 <header class="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
   <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:px-8">
-    <a href="/" class="group flex shrink-0 items-center gap-2.5">
-      <span class="relative grid h-8 w-8 place-items-center rounded-lg bg-signal-500/15 text-signal-400 ring-1 ring-signal-500/30 transition group-hover:bg-signal-500/25">
-        ◈
-        <span class="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-signal-400"
-              title="agent online" aria-hidden="true"></span>
-      </span>
-      <span class="flex flex-col leading-none">
-        <span class="text-[15px] font-bold tracking-tight text-white">{{ app_name }}</span>
-        <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.18em] text-mist-500 sm:block">by ay systum</span>
-      </span>
+    <a href="/" class="group flex shrink-0 items-center" aria-label="Nexora home">
+      {{ ui.logo(32) }}
     </a>
 
     {% set nav_items = [('/', 'For You'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
@@ -117,6 +110,17 @@
                 stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
         </svg>
         <span id="saved-count"
+              class="absolute -right-1.5 -top-1.5 hidden min-w-[18px] rounded-full bg-signal-500 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-ink-950"
+              aria-live="polite">0</span>
+      </a>
+
+      <a href="/cart" id="cart-nav" aria-label="Cart"
+         class="relative grid h-9 w-9 place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-300 transition hover:border-signal-500/50 hover:text-signal-300">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+                stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-cart-count
               class="absolute -right-1.5 -top-1.5 hidden min-w-[18px] rounded-full bg-signal-500 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-ink-950"
               aria-live="polite">0</span>
       </a>
@@ -162,6 +166,7 @@
               <a href="/admin" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Admin</a>
             {% endif %}
             <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/cart" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Cart</a>
               <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
               <a href="/profile" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Profile</a>
               <form action="/logout" method="post">
@@ -170,6 +175,7 @@
             </div>
           {% else %}
             <div class="mt-1 border-t border-ink-800 pt-1">
+              <a href="/cart" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Cart</a>
               <a href="/saved" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Saved courses</a>
               <a href="/login" class="block rounded-md px-3.5 py-3 text-sm font-medium text-mist-200 transition hover:bg-ink-850 hover:text-white">Sign in</a>
             </div>
@@ -243,6 +249,7 @@
           <dd class="mt-1 space-y-1 text-mist-400">
             <a class="block transition hover:text-mist-50" href="/architecture">Architecture</a>
             <a class="block transition hover:text-mist-50" href="/saved">Saved courses</a>
+            <a class="block transition hover:text-mist-50" href="/cart">Cart</a>
             <a class="block transition hover:text-mist-50" href="/api/agent/graph">Graph JSON</a>
           </dd>
         </div>
@@ -271,6 +278,7 @@
 
 <script src="/static/js/tracker.js" defer></script>
 <script src="/static/js/saved.js" defer></script>
+<script src="/static/js/cart.js" defer></script>
 <script>
   // Flash auto-dismiss: fade out after 6s, pause the timer while hovered.
   (function () {
