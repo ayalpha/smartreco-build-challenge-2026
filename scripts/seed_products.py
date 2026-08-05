@@ -65,7 +65,7 @@ COVER_URL = "/static/img/courses/{filename}"
 COVER_DIR = PROJECT_ROOT / "app" / "static" / "img" / "courses"
 
 #: Extensions probed, in order of preference.
-COVER_EXTENSIONS = (".jpg", ".svg")
+COVER_EXTENSIONS = (".jpg",)
 
 #: Fallback used only if a title is not in :data:`COVER_BY_TITLE`.
 DEFAULT_COVER = "agentic-ai"
