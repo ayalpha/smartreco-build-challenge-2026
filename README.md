@@ -1,6 +1,6 @@
 <div align="center">
 
-# ◈ SmartReco
+# ◈ NEXORA
 
 **A behavioural AI recommendation agent that watches, understands, and persuades.**
 
@@ -20,7 +20,7 @@ Built for the **SmartReco Build Challenge 2026**
 
 ## 1. What this is, and what makes it different
 
-SmartReco is a learning marketplace (think Udemy) with a genuine **agent** behind the
+Nexora is a learning marketplace (think Udemy) with a genuine **agent** behind the
 recommendations rather than a similarity query wearing a trench coat.
 
 It observes real behaviour — clicks, searches, dwell time, cart adds — and then runs a
