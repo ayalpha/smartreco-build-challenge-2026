@@ -1,4 +1,4 @@
-# Deploying SmartReco
+# Deploying Nexora
 
 Two verified targets. **Render** is documented first because its free tier needs
 no add-on services at all. Railway follows.

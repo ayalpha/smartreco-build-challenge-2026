@@ -1,18 +1,18 @@
 <div align="center">
 
-# ◈ NEXORA
+# ◈ Nexora
 
 **A behavioural AI recommendation agent that watches, understands, and persuades.**
 
-Built for the **SmartReco Build Challenge 2026**
+Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 
-[![SmartReco Checks](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-build-challenge-2026-checks.yml/badge.svg)](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-build-challenge-2026-checks.yml)
+[![SmartReco Checks](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-checks.yml/badge.svg)](https://github.com/ayalpha/smartreco-build-challenge-2026/actions/workflows/smartreco-checks.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-state%20machine-1C3C3C)
 ![Qdrant](https://img.shields.io/badge/Qdrant-hybrid%20search-DC244C)
 ![Mesh API](https://img.shields.io/badge/all%20LLM%20calls-Mesh%20API-22c98a)
-![Tests](https://img.shields.io/badge/tests-135%20passing-22c98a)
+![Tests](https://img.shields.io/badge/tests-153%20passing-22c98a)
 
 </div>
 
@@ -133,7 +133,7 @@ human-readable page at **`/architecture`**.
 | **Email** | SendGrid *or* SMTP *or* console | `console` is the default so digests work with no credentials |
 | **Frontend** | Jinja2 + vanilla JS + Tailwind CDN | No build step; the tracker is ~350 lines of dependency-free JS |
 | **Auth** | JWT (`python-jose`) + bcrypt | HttpOnly cookie for pages, Bearer token for API — one token type |
-| **Tests** | pytest — **135 tests, all passing** | Runs the real graph with no services and no keys |
+| **Tests** | pytest — **153 tests, all passing** | Runs the real graph with no services and no keys |
 
 ---
 
@@ -183,7 +183,7 @@ cp .env.example .env          # then add your MESH_API_KEY
 docker compose up -d
 ```
 
-That brings up PostgreSQL, Qdrant and Redis, runs migrations, seeds 38 courses with demo
+That brings up PostgreSQL, Qdrant and Redis, runs migrations, seeds 50 courses with demo
 users and synthetic behaviour, and serves the app. Open **http://localhost:8000**.
 
 ### Option B — Local Python, containerised infrastructure
@@ -225,7 +225,7 @@ Created by `--demo-users`, password `smartreco123`:
 ### Seed script flags
 
 ```bash
-python -m scripts.seed_products                       # 38 courses, SQL + vectors
+python -m scripts.seed_products                       # 50 courses, SQL + vectors
 python -m scripts.seed_products --demo-users          # + admin & learner accounts
 python -m scripts.seed_products --with-events         # + a synthetic browsing session
 python -m scripts.seed_products --run-agent           # + generate a recommendation now
@@ -516,7 +516,7 @@ came from a real embedding model and re-index selectively after a model migratio
 ## 11. Tests
 
 ```bash
-pytest                       # 135 tests
+pytest                       # 153 tests
 pytest -v                    # verbose
 pytest tests/test_agent.py   # the graph only
 pytest --durations=10        # slowest tests

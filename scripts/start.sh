@@ -4,7 +4,7 @@
 #
 # Three phases, in order:
 #   1. migrate  — bring the schema up to head
-#   2. seed     — load the 38-course catalog + demo users (idempotent)
+#   2. seed     — load the 50-course catalog + demo users (idempotent)
 #   3. serve    — uvicorn bound to the platform-supplied $PORT
 #
 # Phases 1 and 2 are deliberately NON-FATAL. A managed database that is still

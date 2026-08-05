@@ -115,9 +115,32 @@
     return digits.length > 0 && sum % 10 === 0;
   }
 
+  /**
+   * Find the `.ck-error` node belonging to a field.
+   *
+   * Most fields are `<div><label><input class="ck-field"><p class="ck-error">`,
+   * so the error node is a child of the input's immediate parent. The card
+   * number is not: its input lives inside a `.relative` wrapper (which
+   * positions the brand badge), and `.ck-error` is a SIBLING of that wrapper.
+   * A plain `closest('div')` therefore lands on a container holding no error
+   * node, and the card's message silently never renders.
+   *
+   * So walk up instead — and only accept an ancestor holding exactly one
+   * `.ck-error`, which keeps us from grabbing a neighbour's node out of a
+   * shared row wrapper (e.g. the expiry/CVV grid holds two).
+   */
+  function errorNodeFor(input) {
+    let holder = input.parentElement;
+    for (let depth = 0; holder && holder !== form && depth < 4; depth++) {
+      const found = holder.querySelectorAll('.ck-error');
+      if (found.length === 1) return found[0];
+      holder = holder.parentElement;
+    }
+    return null;
+  }
+
   function setError(input, message) {
-    const holder = input.closest('div');
-    const node = holder ? holder.querySelector('.ck-error') : null;
+    const node = errorNodeFor(input);
     const bad = Boolean(message);
     input.classList.toggle('border-rose-500/60', bad);
     input.setAttribute('aria-invalid', bad ? 'true' : 'false');

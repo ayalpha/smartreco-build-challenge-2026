@@ -57,22 +57,26 @@ from app.vector_store.sync import reindex_all, verify_sync  # noqa: E402
 logger = logging.getLogger("scripts.seed_products")
 
 #: Course covers are first-party generated artwork committed to the repo — one
-#: coherent abstract-technical style across the whole catalog. No external
-#: hotlinks, no stock photos, nothing that can 404 or render something absurd.
-#: Raster covers (.jpg) are AI-generated; the remainder are deterministic .svg
-#: covers produced by ``scripts/generate_covers.py`` in the same visual language.
+#: coherent abstract-technical style across the whole catalog: near-black ink
+#: ground, faint technical grid, a single luminous schematic in signal-green
+#: and iris-violet, no lettering. All 50 are AI-generated JPEGs at 800x447,
+#: ~31KB each (~1.5MB for the set). No external hotlinks, no stock photos,
+#: nothing that can 404 or render something absurd on a course it doesn't match.
 COVER_URL = "/static/img/courses/{filename}"
 COVER_DIR = PROJECT_ROOT / "app" / "static" / "img" / "courses"
 
-#: Extensions probed, in order of preference.
+#: Extensions probed, in order of preference. Every cover is currently .jpg;
+#: this stays a tuple so another format can be introduced without touching
+#: the resolver below.
 COVER_EXTENSIONS = (".jpg",)
 
 #: Fallback used only if a title is not in :data:`COVER_BY_TITLE`.
 DEFAULT_COVER = "agentic-ai"
 
 #: Every curated course maps to its OWN cover — 50 courses, 50 distinct
-#: images. Raster covers are AI-generated art; the rest are deterministic
-#: SVGs from scripts/generate_covers.py in the same visual language.
+#: images, no slug reused. Each motif is drawn from what the course actually
+#: teaches (a retry-looping DAG for Airflow, sharded parameter planes for
+#: distributed training), so the art carries information rather than decorating.
 COVER_BY_TITLE: dict[str, str] = {
     'Building Production Agents with LangGraph': 'agentic-ai',
     'Agentic RAG: Retrieval That Reasons': 'rag-retrieval',
@@ -135,7 +139,7 @@ def _cover_slug(title: str) -> str:
 
 
 def _thumbnail(title: str) -> str:
-    """Build the static path to this course's cover, resolving .jpg or .svg.
+    """Build the static path to this course's cover.
 
     Falls back to :data:`DEFAULT_COVER` for any title without an explicit
     mapping or with a missing file, so a course always renders a real image

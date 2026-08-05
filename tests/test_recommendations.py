@@ -196,7 +196,7 @@ class TestPages:
     def test_homepage_renders_for_anonymous_visitors(self, client: TestClient) -> None:
         response = client.get("/")
         assert response.status_code == 200
-        assert "For You" in response.text
+        assert "Nexora" in response.text
         assert "Sign in to see your personalised panel" in response.text
 
     def test_homepage_shows_the_recommendation_when_present(
