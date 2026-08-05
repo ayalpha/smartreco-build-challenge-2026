@@ -793,7 +793,375 @@ CATALOG: list[dict[str, Any]] = [
         ),
     },
 
- ]
+    # ======================================================================
+    # Catalog expansion — 20 further courses across the same ten disciplines.
+    # ======================================================================
+
+    # ------------------------------------------------------------ Agentic AI
+    {
+        "title": "Evaluation-Driven LLM Development",
+        "category": "Agentic AI",
+        "skill_level": "advanced",
+        "price": 99.0,
+        "duration": "12 hours",
+        "instructor": "Marta Alves",
+        "rating": 4.8,
+        "tags": ["evaluation", "llm", "testing", "datasets", "regression"],
+        "description": (
+            "Shipping an LLM feature without an eval suite is shipping a rumour. Build golden "
+            "datasets from production traffic, write graders that correlate with human judgement, "
+            "and wire regression gates into CI so a prompt change cannot quietly degrade quality."
+        ),
+    },
+    {
+        "title": "RAG Systems in Production",
+        "category": "Agentic AI",
+        "skill_level": "intermediate",
+        "price": 89.0,
+        "duration": "13 hours",
+        "instructor": "Daniel Okafor",
+        "rating": 4.9,
+        "tags": ["rag", "chunking", "reranking", "embeddings", "latency"],
+        "description": (
+            "The gap between a RAG demo and a RAG product is chunking strategy, retrieval "
+            "evaluation and latency budgets. Covers document parsing, chunk boundary design, "
+            "hybrid retrieval, cross-encoder re-ranking, and caching layers that keep p95 sane."
+        ),
+    },
+    {
+        "title": "Tool Use and Function Calling for Agents",
+        "category": "Agentic AI",
+        "skill_level": "intermediate",
+        "price": 79.0,
+        "duration": "9 hours",
+        "instructor": "Priya Raghavan",
+        "rating": 4.7,
+        "tags": ["tool use", "function calling", "agents", "schemas", "reliability"],
+        "description": (
+            "Give an agent hands without giving it a loaded gun. Schema design for tools, argument "
+            "validation, idempotency, permissioning, and retry semantics when a tool call fails "
+            "halfway. Ends with an agent that can act on real systems safely."
+        ),
+    },
+    {
+        "title": "Prompt Injection and LLM Security",
+        "category": "Agentic AI",
+        "skill_level": "advanced",
+        "price": 95.0,
+        "duration": "8 hours",
+        "instructor": "Ahmed Rahal",
+        "rating": 4.8,
+        "tags": ["security", "prompt injection", "llm", "sandboxing", "threat modelling"],
+        "description": (
+            "Untrusted text reaching a model is an attack surface. Direct and indirect prompt "
+            "injection, exfiltration through tool calls, sandboxing untrusted content, and the "
+            "trust-boundary discipline that keeps a retrieval pipeline from becoming an exploit."
+        ),
+    },
+
+    # ------------------------------------------------------ Machine Learning
+    {
+        "title": "Time-Series Forecasting at Scale",
+        "category": "Machine Learning",
+        "skill_level": "intermediate",
+        "price": 85.0,
+        "duration": "14 hours",
+        "instructor": "Sofia Duarte",
+        "rating": 4.6,
+        "tags": ["time series", "forecasting", "seasonality", "backtesting", "prophet"],
+        "description": (
+            "Forecasting breaks the assumptions most ML training relies on. Proper temporal "
+            "cross-validation, seasonality and holiday effects, hierarchical reconciliation across "
+            "thousands of series, and honest interval estimates rather than a single hopeful line."
+        ),
+    },
+    {
+        "title": "Gradient Boosting in Depth: XGBoost and LightGBM",
+        "category": "Machine Learning",
+        "skill_level": "intermediate",
+        "price": 75.0,
+        "duration": "11 hours",
+        "instructor": "Hiroshi Tanaka",
+        "rating": 4.8,
+        "tags": ["xgboost", "lightgbm", "boosting", "tabular", "tuning"],
+        "description": (
+            "Still the strongest default for tabular problems, and still widely misused. How the "
+            "boosting objective actually works, which hyperparameters matter and which are noise, "
+            "categorical handling, and reading SHAP values without over-reading them."
+        ),
+    },
+    {
+        "title": "Experiment Design and Online A/B Testing",
+        "category": "Machine Learning",
+        "skill_level": "intermediate",
+        "price": 79.0,
+        "duration": "10 hours",
+        "instructor": "Elena Vasquez",
+        "rating": 4.7,
+        "tags": ["ab testing", "experimentation", "statistics", "metrics", "causal"],
+        "description": (
+            "Offline metrics lie; experiments are how you find out. Randomisation units, sample "
+            "size and power, guardrail metrics, sequential testing pitfalls, and interpreting a "
+            "result that disagrees with your offline evaluation."
+        ),
+    },
+
+    # --------------------------------------------------------- Deep Learning
+    {
+        "title": "Distributed Training with FSDP and DeepSpeed",
+        "category": "Deep Learning",
+        "skill_level": "advanced",
+        "price": 129.0,
+        "duration": "15 hours",
+        "instructor": "Hiroshi Tanaka",
+        "rating": 4.7,
+        "tags": ["distributed", "fsdp", "deepspeed", "gpu", "scaling"],
+        "description": (
+            "When a model no longer fits on one GPU. Data, tensor and pipeline parallelism, fully "
+            "sharded data parallel, activation checkpointing, and the communication patterns that "
+            "decide whether adding GPUs actually makes training faster."
+        ),
+    },
+    {
+        "title": "Diffusion Models: Theory and Practice",
+        "category": "Deep Learning",
+        "skill_level": "advanced",
+        "price": 109.0,
+        "duration": "13 hours",
+        "instructor": "Lucas Meyer",
+        "rating": 4.6,
+        "tags": ["diffusion", "generative", "sampling", "unet", "guidance"],
+        "description": (
+            "Build a diffusion model from the forward noising process up. Denoising objectives, "
+            "sampler families and their speed-quality trade-offs, classifier-free guidance, and "
+            "fine-tuning a pretrained model on a small custom dataset without wrecking it."
+        ),
+    },
+
+    # ------------------------------------------------------ Data Engineering
+    {
+        "title": "Analytics at Speed with DuckDB",
+        "category": "Data Engineering",
+        "skill_level": "beginner",
+        "price": 49.0,
+        "duration": "8 hours",
+        "instructor": "Elena Vasquez",
+        "rating": 4.7,
+        "tags": ["duckdb", "olap", "parquet", "analytics", "sql"],
+        "description": (
+            "An entire analytics engine in a single process, and often faster than the cluster you "
+            "were about to provision. Columnar execution, querying Parquet in place, larger-than-"
+            "memory workloads, and where DuckDB stops being the right answer."
+        ),
+    },
+    {
+        "title": "Data Contracts and Quality Engineering",
+        "category": "Data Engineering",
+        "skill_level": "intermediate",
+        "price": 79.0,
+        "duration": "10 hours",
+        "instructor": "Nadia Hussain",
+        "rating": 4.6,
+        "tags": ["data quality", "contracts", "testing", "lineage", "governance"],
+        "description": (
+            "Most data incidents are contract violations nobody wrote down. Schema contracts "
+            "between producers and consumers, freshness and volume expectations, lineage-aware "
+            "alerting, and a quality framework that fails the pipeline rather than the dashboard."
+        ),
+    },
+    {
+        "title": "Lakehouse Architecture with Apache Iceberg",
+        "category": "Data Engineering",
+        "skill_level": "advanced",
+        "price": 105.0,
+        "duration": "14 hours",
+        "instructor": "Kwame Mensah",
+        "rating": 4.5,
+        "tags": ["iceberg", "lakehouse", "table format", "time travel", "partitioning"],
+        "description": (
+            "Table formats brought database guarantees to object storage. Snapshot isolation, "
+            "hidden partitioning, schema evolution without rewrites, compaction strategy, and "
+            "time-travel queries that make debugging a bad load tractable."
+        ),
+    },
+
+    # ----------------------------------------------------------------- Python
+    {
+        "title": "Python Performance: Profiling and Optimisation",
+        "category": "Python",
+        "skill_level": "intermediate",
+        "price": 69.0,
+        "duration": "10 hours",
+        "instructor": "Tomas Nowak",
+        "rating": 4.7,
+        "tags": ["performance", "profiling", "cython", "memory", "optimisation"],
+        "description": (
+            "Measure before you optimise, then optimise the thing you measured. CPU and memory "
+            "profiling, algorithmic wins versus micro-optimisation, vectorisation, native "
+            "extensions, and how far you can get before reaching for another language."
+        ),
+    },
+    {
+        "title": "Rust for Python Engineers",
+        "category": "Python",
+        "skill_level": "advanced",
+        "price": 99.0,
+        "duration": "16 hours",
+        "instructor": "Tomas Nowak",
+        "rating": 4.8,
+        "tags": ["rust", "pyo3", "systems", "performance", "interop"],
+        "description": (
+            "Learn Rust from a Python mental model, then use it where Python hurts. Ownership and "
+            "borrowing explained against garbage collection, error handling without exceptions, "
+            "and shipping a PyO3 extension that speeds up a real hot path in your codebase."
+        ),
+    },
+
+    # ------------------------------------------------------------ JavaScript
+    {
+        "title": "Modern React Patterns and Server Components",
+        "category": "JavaScript",
+        "skill_level": "intermediate",
+        "price": 79.0,
+        "duration": "13 hours",
+        "instructor": "Aisha Bello",
+        "rating": 4.6,
+        "tags": ["react", "server components", "hooks", "state", "rendering"],
+        "description": (
+            "React changed shape and a lot of received wisdom expired with it. Server versus client "
+            "components, the boundaries between them, data fetching and caching, state colocation, "
+            "and the rendering model that explains why your component ran three times."
+        ),
+    },
+
+    # -------------------------------------------------------- Web Development
+    {
+        "title": "Accessibility Engineering for Web Applications",
+        "category": "Web Development",
+        "skill_level": "intermediate",
+        "price": 69.0,
+        "duration": "9 hours",
+        "instructor": "Aisha Bello",
+        "rating": 4.8,
+        "tags": ["accessibility", "wcag", "aria", "screen readers", "keyboard"],
+        "description": (
+            "Accessibility is a set of engineering constraints, not a checklist bolted on at the "
+            "end. Semantic structure, keyboard operability, ARIA for dynamic regions, focus "
+            "management in modals, and testing with an actual screen reader rather than a linter."
+        ),
+    },
+    {
+        "title": "Real-Time Web with WebSockets and SSE",
+        "category": "Web Development",
+        "skill_level": "intermediate",
+        "price": 75.0,
+        "duration": "10 hours",
+        "instructor": "Lucas Meyer",
+        "rating": 4.5,
+        "tags": ["websockets", "sse", "real time", "scaling", "reconnection"],
+        "description": (
+            "Live updates look trivial in a demo and get hard at connection number ten thousand. "
+            "Choosing between polling, SSE and WebSockets, reconnection with backoff, message "
+            "ordering and replay, and horizontal scaling with a pub/sub backplane."
+        ),
+    },
+
+    # ----------------------------------------------------------------- DevOps
+    {
+        "title": "Platform Engineering and Internal Developer Portals",
+        "category": "DevOps",
+        "skill_level": "advanced",
+        "price": 109.0,
+        "duration": "14 hours",
+        "instructor": "Kwame Mensah",
+        "rating": 4.5,
+        "tags": ["platform engineering", "backstage", "golden paths", "developer experience"],
+        "description": (
+            "Platform teams succeed by making the right thing the easy thing. Golden paths and "
+            "paved roads, service templates and scaffolding, a service catalogue people actually "
+            "keep current, and measuring developer experience instead of guessing at it."
+        ),
+    },
+    {
+        "title": "Incident Response and On-Call Engineering",
+        "category": "DevOps",
+        "skill_level": "intermediate",
+        "price": 69.0,
+        "duration": "8 hours",
+        "instructor": "Ahmed Rahal",
+        "rating": 4.7,
+        "tags": ["incidents", "on call", "sre", "postmortems", "alerting"],
+        "description": (
+            "The skill of staying calm and effective while production burns. Incident command "
+            "roles, communication cadence, mitigation before diagnosis, alert hygiene that "
+            "protects sleep, and blameless postmortems that produce fixes instead of blame."
+        ),
+    },
+
+    # ------------------------------------------------------------------ Cloud
+    {
+        "title": "Cloud Cost Engineering and FinOps",
+        "category": "Cloud",
+        "skill_level": "intermediate",
+        "price": 79.0,
+        "duration": "9 hours",
+        "instructor": "Sofia Duarte",
+        "rating": 4.6,
+        "tags": ["finops", "cost", "cloud", "rightsizing", "architecture"],
+        "description": (
+            "Cloud spend is an architecture problem wearing a finance costume. Cost attribution and "
+            "tagging discipline, rightsizing with real utilisation data, commitment strategy, "
+            "egress traps, and the design choices that quietly triple a monthly bill."
+        ),
+    },
+    {
+        "title": "Event-Driven Architecture on the Cloud",
+        "category": "Cloud",
+        "skill_level": "advanced",
+        "price": 99.0,
+        "duration": "13 hours",
+        "instructor": "Kwame Mensah",
+        "rating": 4.6,
+        "tags": ["event driven", "queues", "sagas", "idempotency", "messaging"],
+        "description": (
+            "Decoupling with events buys flexibility and bills you in complexity. Event schema "
+            "design and versioning, idempotent consumers, the saga pattern for distributed "
+            "workflows, dead-letter handling, and debugging a flow with no single call stack."
+        ),
+    },
+
+    # ---------------------------------------------------------- Career Skills
+    {
+        "title": "System Design Interviews for Senior Engineers",
+        "category": "Career Skills",
+        "skill_level": "advanced",
+        "price": 89.0,
+        "duration": "12 hours",
+        "instructor": "Nadia Hussain",
+        "rating": 4.8,
+        "tags": ["system design", "interviews", "architecture", "scaling", "communication"],
+        "description": (
+            "Senior system design interviews test judgement under ambiguity, not memorised "
+            "diagrams. Requirement clarification, capacity estimation, explicit trade-offs, "
+            "failure modes, and narrating your reasoning so the interviewer can follow it."
+        ),
+    },
+    {
+        "title": "Building a Portfolio That Gets You Hired",
+        "category": "Career Skills",
+        "skill_level": "beginner",
+        "price": 39.0,
+        "duration": "6 hours",
+        "instructor": "Marta Alves",
+        "rating": 4.5,
+        "tags": ["portfolio", "career", "projects", "writing", "github"],
+        "description": (
+            "Three finished projects with real write-ups beat thirty abandoned repositories. "
+            "Choosing projects that demonstrate judgement, writing a README a hiring manager will "
+            "actually read, and framing your work as decisions made rather than tools used."
+        ),
+    },
+]
 
 
 # --------------------------------------------------------------------------- #
