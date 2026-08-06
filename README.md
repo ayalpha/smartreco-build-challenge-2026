@@ -17,7 +17,7 @@ Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 
 <p align="center">
   <img
-    src="https://raw.githubusercontent.com/ayalpha/smartreco-build-challenge-2026/main/thumbnail%208k.jpeg"
+    src="./thumbnail%208k.jpeg"
     alt="Nexora"
     width="100%"
   />
