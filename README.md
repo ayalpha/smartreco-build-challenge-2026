@@ -14,6 +14,11 @@ Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 ![Mesh API](https://img.shields.io/badge/all%20LLM%20calls-Mesh%20API-22c98a)
 ![Tests](https://img.shields.io/badge/tests-153%20passing-22c98a)
 
+
+<p align="center">
+  <img src="attachment://thumbnail-8k.jpg" alt="Nexora" width="100%" />
+</p>
+
 </div>
 
 ---
@@ -28,8 +33,6 @@ It observes real behaviour — clicks, searches, dwell time, cart adds — and t
 behind it, retrieves candidates with hybrid vector search, grades every candidate,
 **loops back to broaden the search when the results are thin**, and only then writes a
 persuasive recommendation that cites the evidence it was based on.
-
-[![Crf2scX.th.jpg](https://iili.io/Crf2scX.th.jpg)](https://freeimage.host/i/Crf2scX)
 
 Five things here are unusual for a hackathon build:
 
