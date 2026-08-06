@@ -29,6 +29,8 @@ behind it, retrieves candidates with hybrid vector search, grades every candidat
 **loops back to broaden the search when the results are thin**, and only then writes a
 persuasive recommendation that cites the evidence it was based on.
 
+[![Crf2scX.th.jpg](https://iili.io/Crf2scX.th.jpg)](https://freeimage.host/i/Crf2scX)
+
 Five things here are unusual for a hackathon build:
 
 | | |
