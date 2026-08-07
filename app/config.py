@@ -1,7 +1,7 @@
 """Application configuration.
 
 All runtime configuration is loaded from environment variables (or a local
-``.env`` file) into a single immutable :class:`Settings` object.  Nothing in this
+``.env`` file) into a single immutable :class:`Settings` object. Nothing in this
 codebase reads ``os.environ`` directly except :func:`Settings` itself and the
 Mesh client factory (which needs the raw key), so there is exactly one place to
 look when auditing configuration.
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     """Strongly-typed application settings.
 
     Every field maps 1:1 to an environment variable of the same (upper-cased)
-    name.  See ``.env.example`` for a documented template.
+    name. See ``.env.example`` for a documented template.
     """
 
     model_config = SettingsConfigDict(
@@ -95,8 +95,11 @@ class Settings(BaseSettings):
 
     # --------------------------------------------------------------- email
     email_enabled: bool = True
-    email_backend: Literal["console", "sendgrid", "smtp"] = "console"
+    email_backend: Literal["console", "sendgrid", "smtp", "resend"] = "console"
+
     sendgrid_api_key: Optional[str] = None
+    resend_api_key: Optional[str] = None
+
     digest_from_email: str = "noreply@nexora.ai"
     digest_from_name: str = "Nexora"
     digest_schedule_hour: int = Field(default=18, ge=0, le=23)
@@ -130,9 +133,17 @@ class Settings(BaseSettings):
             raise ValueError(f"Unsupported LOG_LEVEL: {value!r}")
         return candidate
 
-    @field_validator("qdrant_api_key", "telegram_bot_token", "sendgrid_api_key",
-                     "smtp_username", "smtp_password", "langsmith_api_key", "redis_url",
-                     mode="before")
+    @field_validator(
+        "qdrant_api_key",
+        "telegram_bot_token",
+        "sendgrid_api_key",
+        "resend_api_key",
+        "smtp_username",
+        "smtp_password",
+        "langsmith_api_key",
+        "redis_url",
+        mode="before",
+    )
     @classmethod
     def _empty_string_to_none(cls, value: Any) -> Any:
         """Treat an empty env var (``FOO=``) as "not configured"."""
