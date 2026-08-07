@@ -247,3 +247,99 @@ def send_email(to_email: str, subject: str, html: str, text: str) -> DeliveryOut
             subject=subject,
             error=f"{type(exc).__name__}: {exc}"[:500],
         )
+        
+def send_telegram(chat_id: str, text: str) -> DeliveryOutcome:
+    """Send a digest to Telegram (BONUS 2b — enabled by ``TELEGRAM_BOT_TOKEN``).
+
+    Returns:
+        A :class:`DeliveryOutcome`; skipped cleanly when no token is configured.
+    """
+    if not settings.telegram_bot_token:
+        return DeliveryOutcome(
+            channel="telegram", backend="telegram", ok=False,
+            error="TELEGRAM_BOT_TOKEN is not configured",
+        )
+
+    try:
+        import httpx
+
+        url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
+        response = httpx.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": text[:4000],  # Telegram hard-limits messages to 4096 chars
+                "disable_web_page_preview": False,
+            },
+            timeout=20.0,
+        )
+        response.raise_for_status()
+        logger.info("[telegram] delivered to chat %s", chat_id)
+        return DeliveryOutcome(channel="telegram", backend="telegram", ok=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Telegram delivery to chat %s failed", chat_id)
+        return DeliveryOutcome(
+            channel="telegram", backend="telegram", ok=False,
+            error=f"{type(exc).__name__}: {exc}"[:500],
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Orchestration                                                               #
+# --------------------------------------------------------------------------- #
+
+def deliver_digest(user_id: int, recommendation_id: int) -> list[DeliveryOutcome]:
+    """Render and deliver a digest for one user, recording every attempt.
+
+    Args:
+        user_id: Recipient.
+        recommendation_id: The recommendation to feature.
+
+    Returns:
+        One :class:`DeliveryOutcome` per attempted channel.
+    """
+    outcomes: list[DeliveryOutcome] = []
+
+    with session_scope() as db:
+        user = db.get(User, user_id)
+        recommendation = db.get(Recommendation, recommendation_id)
+
+        if user is None or recommendation is None:
+            logger.warning(
+                "Cannot deliver digest: user=%s recommendation=%s not found",
+                user_id, recommendation_id,
+            )
+            return outcomes
+
+        payload = recommendation.to_dict()
+        products = (payload.get("products") or [])[: settings.digest_product_count]
+        subject = (
+            payload.get("headline")
+            or f"Your {settings.app_name} picks for today"
+        )[:200]
+
+        html = render_digest_html(user.display_name, payload, products)
+        text = render_digest_text(user.display_name, payload, products)
+        telegram_chat_id = user.telegram_chat_id
+        recipient = user.email
+
+        email_outcome = send_email(recipient, subject, html, text)
+        outcomes.append(email_outcome)
+
+        if telegram_chat_id:
+            outcomes.append(send_telegram(telegram_chat_id, text))
+
+        for outcome in outcomes:
+            db.add(
+                EmailDigest(
+                    user_id=user_id,
+                    recommendation_id=recommendation_id,
+                    channel=outcome.channel,
+                    backend=outcome.backend,
+                    status="sent" if outcome.ok else "failed",
+                    subject=outcome.subject or subject,
+                    error=outcome.error,
+                )
+            )
+
+    return outcomes
