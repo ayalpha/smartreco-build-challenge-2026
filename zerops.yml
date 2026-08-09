@@ -3,7 +3,7 @@ zerops:
   # SmartReco — FastAPI Application
   # Python 3.11 · uvicorn · Alembic migrations · Qdrant embedded fallback
   # ─────────────────────────────────────────────────────────────────────────────
-  - setup: smartreco-app
+  - setup: smartrecoapp
     build:
       base: python@3.11
       buildCommands:
