@@ -18,10 +18,10 @@ zerops:
         - port: 8000
           httpSupport: true
 
-      start: >-
-        .venv/bin/python -m alembic upgrade head &&
-        .venv/bin/python -m scripts.seed_products &&
-        exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    start: bash ./start.sh
+
+    
+
 
       healthCheck:
         httpGet:
