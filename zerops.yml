@@ -1,14 +1,12 @@
 zerops:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # SmartReco — FastAPI Application
-  # Python 3.11 · uvicorn · Alembic migrations · Qdrant embedded fallback
-  # ─────────────────────────────────────────────────────────────────────────────
   - setup: smartrecoapp
+
     build:
       base: python@3.11
       buildCommands:
-        - pip install --upgrade pip
-        - pip install -r requirements.txt
+        - python -m venv .venv
+        - .venv/bin/python -m pip install --upgrade pip
+        - .venv/bin/python -m pip install --no-cache-dir -r requirements.txt
       deployFiles:
         - .
       cache:
@@ -19,33 +17,41 @@ zerops:
       ports:
         - port: 8000
           httpSupport: true
-      prepareCommands:
-        # Run Alembic migrations before the first start
-        - alembic upgrade head
-        # Seed the catalog (idempotent — safe to re-run on every deploy)
-        - python -m scripts.seed_products
-      start: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+
+      start: >-
+        .venv/bin/python -m alembic upgrade head &&
+        .venv/bin/python -m scripts.seed_products &&
+        exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+
       healthCheck:
         httpGet:
           port: 8000
           path: /health
+
       envVariables:
-        # ── Database (Zerops PostgreSQL service hostname auto-injected) ────────
         DATABASE_URL: ${db_connectionString}
-        # ── Redis (Zerops Redis service hostname auto-injected) ───────────────
-        REDIS_URL: redis://${redis_host}:${redis_port}/0
-        # ── Qdrant (Zerops Qdrant service hostname auto-injected) ─────────────
         QDRANT_URL: http://${qdrant_host}:6333
-        # ── App defaults (override in Zerops UI → Environment variables) ──────
+
         ENVIRONMENT: production
         DEBUG: "false"
         LOG_LEVEL: INFO
         SQL_ECHO: "false"
-        # ── Auth (CHANGE THIS in Zerops UI — do not leave as placeholder) ─────
-        SECRET_KEY: "change-me-in-zerops-env"
+
         ALGORITHM: HS256
         ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
-        # ── Agent defaults ────────────────────────────────────────────────────
+
+        QDRANT_COLLECTION: smartreco_products
+        VECTOR_SEARCH_TOP_K: "12"
+
+        MESH_BASE_URL: https://api.meshapi.ai/v1
+        MESH_MODEL_REASONING: openai/gpt-4o
+        MESH_MODEL_WRITER: anthropic/claude-3-5-sonnet
+        MESH_MODEL_GRADER: openai/gpt-4o-mini
+        MESH_EMBEDDING_MODEL: openai/text-embedding-3-small
+        MESH_EMBEDDING_DIM: "1536"
+        MESH_MAX_RETRIES: "3"
+        MESH_TIMEOUT_SECONDS: "60"
+
         AGENT_EVENT_TRIGGER_INTERVAL: "10"
         AGENT_STALE_HOURS: "2"
         AGENT_STALE_MIN_EVENTS: "5"
@@ -54,28 +60,16 @@ zerops:
         AGENT_RECENT_EVENT_WINDOW: "60"
         AGENT_FINAL_PRODUCT_COUNT: "6"
         AGENT_LOCK_TTL_SECONDS: "300"
-        # ── Vector DB ─────────────────────────────────────────────────────────
-        QDRANT_COLLECTION: smartreco_products
-        VECTOR_SEARCH_TOP_K: "12"
-        MESH_EMBEDDING_DIM: "1536"
-        # ── Email (console by default, no credentials needed) ────────────────
+
         EMAIL_ENABLED: "true"
         EMAIL_BACKEND: console
         DIGEST_SCHEDULE_HOUR: "18"
         DIGEST_SCHEDULE_MINUTE: "0"
         DIGEST_MIN_EVENTS_TODAY: "5"
         DIGEST_PRODUCT_COUNT: "3"
-        # ── Scheduler ────────────────────────────────────────────────────────
+
         SCHEDULER_ENABLED: "true"
         SCHEDULER_TIMEZONE: UTC
-        # ── LangSmith (off by default) ────────────────────────────────────────
+
         LANGSMITH_TRACING: "false"
         LANGSMITH_PROJECT: smartreco-agent
-        # ── Mesh model routing (set MESH_API_KEY in Zerops UI) ───────────────
-        MESH_BASE_URL: https://api.meshapi.ai/v1
-        MESH_MODEL_REASONING: openai/gpt-4o
-        MESH_MODEL_WRITER: anthropic/claude-3-5-sonnet
-        MESH_MODEL_GRADER: openai/gpt-4o-mini
-        MESH_EMBEDDING_MODEL: openai/text-embedding-3-small
-        MESH_MAX_RETRIES: "3"
-        MESH_TIMEOUT_SECONDS: "60"
