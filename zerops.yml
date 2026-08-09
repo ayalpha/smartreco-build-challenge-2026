@@ -17,12 +17,7 @@ zerops:
       ports:
         - port: 8000
           httpSupport: true
-
-    start: bash ./start.sh
-
-    
-
-
+      start: bash ./start.sh
       healthCheck:
         httpGet:
           port: 8000
