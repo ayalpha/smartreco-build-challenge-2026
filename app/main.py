@@ -167,6 +167,7 @@ def create_app() -> FastAPI:
     app.include_router(products.api_router)
     app.include_router(events.router)
     app.include_router(recommendations.api_router)
+    app.include_router(paths.api_router)
     app.include_router(admin.api_router)
     app.include_router(assistant.api_router)
 

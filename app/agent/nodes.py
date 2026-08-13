@@ -25,7 +25,7 @@ import logging
 import time
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -281,6 +281,12 @@ def activity_analyzer(state: RecommendationState) -> dict[str, Any]:
             }
         )
         heuristic = _heuristic_digest(events, titles, categories)
+        user_row = db.get(User, user_id)
+        career_goal = (user_row.career_goal or "").strip() if user_row else ""
+        if career_goal:
+            heuristic = (
+                f"{heuristic} Stated career goal from Path: {career_goal}."
+            ).strip()
 
     update: dict[str, Any] = {
         "raw_events": raw_events,
@@ -307,6 +313,11 @@ def activity_analyzer(state: RecommendationState) -> dict[str, Any]:
         return update
 
     try:
+        goal_note = (
+            f"\n\nStated career goal (from Path builder): {career_goal}"
+            if career_goal
+            else ""
+        )
         payload = call_llm_json(
             messages=[
                 {"role": "system", "content": ACTIVITY_ANALYZER_SYSTEM
@@ -315,7 +326,8 @@ def activity_analyzer(state: RecommendationState) -> dict[str, Any]:
                     "role": "user",
                     "content": activity_analyzer_user(
                         event_lines, str(state.get("trigger_reason") or "manual")
-                    ),
+                    )
+                    + goal_note,
                 },
             ],
             model=settings.mesh_model_reasoning,
@@ -352,17 +364,23 @@ def activity_analyzer(state: RecommendationState) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 def _heuristic_interests(
-    raw_events: list[dict[str, Any]], titles: dict[int, str], catalog_rows: list[Product]
+    raw_events: list[dict[str, Any]],
+    titles: dict[int, str],
+    catalog_rows: list[Product],
+    *,
+    career_goal: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], str]:
     """Derive interest signals and a query without an LLM.
 
     Weights each interacted product's category/tags by event type (cart 3.0,
     dwell scaled by seconds, click 1.0, view 0.3), then normalises the top topics
-    into confidences.
+    into confidences. When the learner has stated a ``career_goal`` via the Path
+    builder, it is injected as a high-confidence signal and into the query.
     """
     weights: Counter = Counter()
     by_id = {row.id: row for row in catalog_rows}
     searches: list[str] = []
+    goal = (career_goal or "").strip()
 
     for event in raw_events:
         event_type = event.get("event_type")
@@ -398,7 +416,7 @@ def _heuristic_interests(
         for tag in product.tag_list[:4]:
             weights[tag] += weight * 0.6
 
-    if not weights:
+    if not weights and not goal:
         return (
             [
                 {
@@ -411,22 +429,50 @@ def _heuristic_interests(
             "start building practical, in-demand technical skills",
         )
 
+    if goal:
+        # Explicit path goals outrank noisy click trails when both exist.
+        weights[goal.lower()] += 4.0
+
+    if not weights:
+        signals = [
+            {
+                "topic": goal[:80],
+                "confidence": 0.85,
+                "evidence": "Stated career goal from the Path builder.",
+            }
+        ]
+        query = (
+            f"A practical course that helps a learner progress toward this goal: {goal}."
+        )
+        return signals, query
+
     top = weights.most_common(5)
     peak = top[0][1] or 1.0
     signals = [
         {
             "topic": topic,
             "confidence": round(min(0.95, 0.35 + 0.6 * (score / peak)), 2),
-            "evidence": f"Accumulated behavioural weight of {score:.1f} across recent events.",
+            "evidence": (
+                "Stated career goal from the Path builder."
+                if goal and topic == goal.lower()
+                else f"Accumulated behavioural weight of {score:.1f} across recent events."
+            ),
         }
         for topic, score in top
     ]
+    # Prefer the human-readable goal string as the topic label when it won.
+    if goal:
+        for signal in signals:
+            if signal["topic"] == goal.lower():
+                signal["topic"] = goal[:80]
 
     topics = ", ".join(topic for topic, _ in top[:3])
     search_hint = f" The learner explicitly searched for {searches[-1]!r}." if searches else ""
+    goal_hint = f" Their stated career goal is {goal!r}." if goal else ""
     query = (
         f"A practical, hands-on course that deepens skills in {topics}, suitable as the "
-        f"natural next step for someone actively studying these topics.{search_hint}"
+        f"natural next step for someone actively studying these topics."
+        f"{search_hint}{goal_hint}"
     )
     return signals, query
 
@@ -443,6 +489,7 @@ def interest_extractor(state: RecommendationState) -> dict[str, Any]:
     raw_events = list(state.get("raw_events") or [])
     seen_ids = [int(pid) for pid in (state.get("seen_product_ids") or [])]
 
+    career_goal: Optional[str] = None
     with session_scope() as db:
         categories = [
             str(row[0])
@@ -456,8 +503,13 @@ def interest_extractor(state: RecommendationState) -> dict[str, Any]:
         recent_titles = [titles[pid] for pid in seen_ids[-8:] if pid in titles]
         observed_prices = [row.price for row in interacted if row.price is not None]
         observed_levels = Counter(row.skill_level for row in interacted if row.skill_level)
+        user_row = db.get(User, int(state["user_id"]))
+        if user_row and user_row.career_goal:
+            career_goal = user_row.career_goal.strip() or None
 
-    heuristic_signals, heuristic_query = _heuristic_interests(raw_events, titles, interacted)
+    heuristic_signals, heuristic_query = _heuristic_interests(
+        raw_events, titles, interacted, career_goal=career_goal
+    )
 
     existing_filters = dict(state.get("retrieval_filters") or {})
     inferred_filters: dict[str, Any] = {

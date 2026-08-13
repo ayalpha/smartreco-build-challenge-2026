@@ -12,10 +12,23 @@
       <span class="font-mono text-xs lowercase tracking-wider text-mist-500">{{ current_user.role.value }}</span>
     </p>
   </div>
-  <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/50 hover:text-signal-300 active:scale-[0.98]">
-    View my picks →
-  </a>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/path" class="rounded-md border border-iris-500/40 bg-iris-500/10 px-4 py-2 text-sm font-medium text-iris-300 transition hover:border-iris-400 hover:text-iris-200 active:scale-[0.98]">
+      {% if current_user.career_goal %}Update path{% else %}Build a path{% endif %}
+    </a>
+    <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/50 hover:text-signal-300 active:scale-[0.98]">
+      View my picks →
+    </a>
+  </div>
 </header>
+
+{% if current_user.career_goal %}
+<section class="mt-6 rounded-[10px] border border-iris-500/25 bg-iris-500/5 px-4 py-3 text-sm text-mist-300">
+  <span class="font-mono text-[10px] uppercase tracking-[0.18em] text-iris-400">career goal</span>
+  <p class="mt-1 text-mist-100">{{ current_user.career_goal }}</p>
+  <a href="/path" class="mt-2 inline-block text-xs font-medium text-signal-400 hover:text-signal-300">Open path builder →</a>
+</section>
+{% endif %}
 
 <!-- =============================== YOUR SIGNAL ============================ -->
 <section class="mt-8">

@@ -93,8 +93,8 @@ def test_behaviour_context_reads_product_categories(
     assert any("Agentic" in topic for topic in interests)
 
 
-def test_create_path_post(client, auth_headers, products, user, make_events) -> None:
-    """POST /path renders a path section with at least one step."""
+def test_create_path_post(client, auth_headers, products, user, make_events, db) -> None:
+    """POST /path renders a path section and persists the career goal."""
     make_events(user, products[:3], count=5)
     response = client.post(
         "/path",
@@ -104,3 +104,42 @@ def test_create_path_post(client, auth_headers, products, user, make_events) -> 
     assert response.status_code == 200
     assert "personalized path" in response.text.lower() or "Your path" in response.text
     assert "View course" in response.text
+
+    db.refresh(user)
+    assert user.career_goal == "Become a multi-agent systems engineer"
+
+
+def test_path_json_api(client, auth_headers, products, user, make_events, db) -> None:
+    """POST /api/path returns structured steps and stores the goal."""
+    make_events(user, products[:2], count=4)
+    response = client.post(
+        "/api/path",
+        json={"goal": "Become an MLOps engineer", "weekly_hours": 10},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["goal"] == "Become an MLOps engineer"
+    assert payload["weekly_hours"] == 10
+    assert payload["steps"]
+    assert payload["degraded"] is True  # no Mesh key in tests
+    assert all("product_id" in step for step in payload["steps"])
+
+    saved = client.get("/api/path", headers=auth_headers)
+    assert saved.status_code == 200
+    assert saved.json()["has_goal"] is True
+    assert "MLOps" in saved.json()["goal"]
+
+    db.refresh(user)
+    assert user.career_goal == "Become an MLOps engineer"
+
+
+def test_heuristic_interests_include_career_goal() -> None:
+    """Career goals should bias the heuristic interest extractor."""
+    from app.agent.nodes import _heuristic_interests
+
+    signals, query = _heuristic_interests(
+        [], {}, [], career_goal="Become a staff ML engineer"
+    )
+    assert any("staff ML engineer" in s["topic"] for s in signals)
+    assert "staff ML engineer" in query

@@ -28,11 +28,13 @@ from app.models.event import Event, EventType
 from app.models.product import Product
 from app.models.recommendation import Recommendation
 from app.models.user import User
+from app.schemas.path import PathOut, PathRequest
 from app.vector_store.sync import hybrid_retrieve
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["paths"])
+api_router = APIRouter(prefix="/api/path", tags=["paths"])
 
 _SKILL_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2}
 _MAX_STEPS = 6
@@ -278,20 +280,47 @@ def _mesh_path(
     }
 
 
+def _persist_career_goal(db: Session, user: User, goal: str) -> None:
+    """Store the learner's stated goal so later agent runs can use it."""
+    cleaned = (goal or "").strip()[:160]
+    if not cleaned:
+        return
+    # Re-load on this session so we don't detach issues across request/agent code.
+    row = db.get(User, user.id)
+    if row is None:
+        return
+    if row.career_goal != cleaned:
+        row.career_goal = cleaned
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        # Keep the request-scoped user object in sync for templates.
+        user.career_goal = cleaned
+        logger.info("Saved career_goal for user %s", user.id)
+
+
 def build_path(
     db: Session,
     user: User,
     goal: str,
     weekly_hours: int = 5,
+    *,
+    persist_goal: bool = True,
 ) -> dict[str, Any]:
     """Build a personalized path for ``user`` aiming at ``goal``.
 
     Always returns a dict with ``headline``, ``summary``, ``steps``,
     ``degraded``, and ``interests`` — never raises for Mesh/Qdrant outages.
+
+    When ``persist_goal`` is True (default), the cleaned goal is written to
+    ``User.career_goal`` so the recommendation graph can bias retrieval.
     """
     cleaned_goal = (goal or "").strip()
     if not cleaned_goal:
-        cleaned_goal = "your next role"
+        cleaned_goal = (user.career_goal or "").strip() or "your next role"
+
+    if persist_goal and cleaned_goal != "your next role":
+        _persist_career_goal(db, user, cleaned_goal)
 
     hours = max(1, min(40, int(weekly_hours or 5)))
     interests, searches = behaviour_context(db, user.id)
@@ -325,13 +354,13 @@ def path_page(
     request: Request,
     user: User = Depends(get_current_user),
 ) -> Response:
-    """Render the empty path builder form."""
+    """Render the path builder form, pre-filled with any saved career goal."""
     return render_page(
         request,
         "path.html",
         user,
         path=None,
-        goal="",
+        goal=user.career_goal or "",
         weekly_hours=5,
         weekly_hour_choices=_WEEKLY_HOUR_CHOICES,
     )
@@ -357,3 +386,28 @@ def create_path(
         weekly_hours=weekly_hours,
         weekly_hour_choices=_WEEKLY_HOUR_CHOICES,
     )
+
+
+# --------------------------------------------------------------------------- #
+# JSON API                                                                    #
+# --------------------------------------------------------------------------- #
+
+@api_router.get("", response_model=dict[str, Any])
+def get_saved_goal(user: User = Depends(get_current_user)) -> dict[str, Any]:
+    """Return the learner's currently saved career goal (if any)."""
+    return {
+        "goal": user.career_goal or "",
+        "has_goal": bool(user.career_goal),
+    }
+
+
+@api_router.post("", response_model=PathOut)
+def create_path_api(
+    body: PathRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PathOut:
+    """Build a personalized path and return it as JSON."""
+    cleaned = body.goal.strip()
+    path = build_path(db, user, cleaned, body.weekly_hours)
+    return PathOut.from_builder(path, goal=cleaned, weekly_hours=body.weekly_hours)
