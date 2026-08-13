@@ -152,11 +152,11 @@
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
                     <a href="/admin/products/{{ product.id }}/edit"
-                       class="rounded border border-ink-600 px-2.5 py-1 text-xs font-medium text-mist-200 transition hover:border-ink-500 hover:text-white">Edit</a>
+                       class="inline-flex min-h-10 items-center rounded border border-ink-600 px-3 py-2 text-xs font-medium text-mist-200 transition hover:border-ink-500 hover:text-white">Edit</a>
                     <form method="post" action="/admin/products/{{ product.id }}/delete"
                           data-confirm-delete="course #{{ product.id }}">
                       <button type="submit"
-                              class="rounded border border-rose-500/40 px-2.5 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/10">Delete</button>
+                              class="inline-flex min-h-10 items-center rounded border border-rose-500/40 px-3 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-500/10">Delete</button>
                     </form>
                   </div>
                 </td>
