@@ -43,6 +43,7 @@ BCRYPT_ROUNDS = 12
 #: Iteration count for the PBKDF2 fallback (only used if bcrypt is unavailable).
 PBKDF2_ITERATIONS = 480_000
 PBKDF2_PREFIX = "pbkdf2_sha256"
+RESERVED_JWT_CLAIMS = frozenset({"sub", "role", "iat", "exp", "iss"})
 
 
 class AuthError(Exception):
@@ -187,7 +188,9 @@ def create_access_token(
         "iss": settings.app_name,
     }
     if extra_claims:
-        payload.update(extra_claims)
+        payload.update(
+            {key: value for key, value in extra_claims.items() if key not in RESERVED_JWT_CLAIMS}
+        )
 
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 

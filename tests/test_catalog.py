@@ -164,6 +164,21 @@ class TestAuthentication:
         assert verify_password(password, hashed) is True
         assert verify_password(password + "attacker-controlled-suffix", hashed) is False
 
+    def test_extra_jwt_claims_cannot_override_reserved_identity_claims(self) -> None:
+        from app.security import create_access_token, decode_access_token
+
+        token = create_access_token(
+            42,
+            role="user",
+            extra_claims={"sub": "999", "role": "admin", "iss": "attacker", "scope": "read"},
+        )
+        claims = decode_access_token(token)
+
+        assert claims["sub"] == "42"
+        assert claims["role"] == "user"
+        assert claims["iss"] != "attacker"
+        assert claims["scope"] == "read"
+
 
 def test_application_import_does_not_depend_on_working_directory(tmp_path: Any) -> None:
     """ASGI servers may be launched outside the repository root."""
