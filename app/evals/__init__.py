@@ -53,6 +53,8 @@ _EXPORTS: dict[str, str] = {
     "ranking_metrics_at_k": "app.evals.metrics",
     "run_classification_eval": "app.evals.runner",
     "run_grader_threshold_eval": "app.evals.runner",
+    "compare_thresholds": "app.evals.runner",
+    "run_eval_suite": "app.evals.runner",
     "run_rerank_eval": "app.evals.runner",
     "run_retrieval_eval": "app.evals.runner",
     "success_at_k": "app.evals.metrics",

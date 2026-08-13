@@ -190,6 +190,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Reset DB vectors and load tests.conftest.SAMPLE_PRODUCTS before eval",
     )
+    parser.add_argument(
+        "--suite",
+        action="store_true",
+        help="Run full offline suite (retrieval + classification + grader + rerank fixtures)",
+    )
+    parser.add_argument(
+        "--suite-mode-compare",
+        action="store_true",
+        help="Include hybrid vs keyword compare inside --suite",
+    )
     return parser.parse_args(argv)
 
 
@@ -203,7 +213,11 @@ def main(argv: list[str] | None = None) -> int:
         EvalParams,
         STRICT_EVAL_PARAMS,
     )
-    from app.evals.runner import compare_retrieval_modes, run_retrieval_eval
+    from app.evals.runner import (
+        compare_retrieval_modes,
+        run_eval_suite,
+        run_retrieval_eval,
+    )
     from app.evals.report import format_metrics_report, metrics_to_json
 
     init_db()
@@ -275,7 +289,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.seed_sample:
             _seed_sample_catalog(db)
 
-        if args.compare_modes:
+        if args.suite:
+            metrics = run_eval_suite(
+                db,
+                params=params,
+                include_mode_compare=args.suite_mode_compare
+                or bool(args.compare_modes),
+            )
+            passed = metrics.get("passed_gates", True)
+        elif args.compare_modes:
             metrics = compare_retrieval_modes(
                 db,
                 modes=tuple(args.compare_modes),
@@ -297,14 +319,32 @@ def main(argv: list[str] | None = None) -> int:
         elif args.csv:
             from app.evals.report import metrics_to_csv
 
-            print(metrics_to_csv(metrics))
+            # Suite: emit retrieval scalars; otherwise full metrics.
+            source = metrics.get("retrieval", metrics) if args.suite else metrics
+            print(metrics_to_csv(source))
         else:
-            title = (
-                "Retrieval mode compare"
-                if args.compare_modes
-                else "Retrieval eval"
-            )
-            print(format_metrics_report(metrics, title=title))
+            if args.suite:
+                title = "Eval suite"
+                # Print suite summary + retrieval report.
+                print(format_metrics_report(metrics.get("retrieval", {}), title="Retrieval"))
+                cls = metrics.get("classification_fixtures") or {}
+                grd = metrics.get("grader_fixtures") or {}
+                print(
+                    f"\nFixtures: classification {cls.get('n_match', 0)}/{cls.get('n', 0)} "
+                    f"matched; grader {grd.get('n_match', 0)}/{grd.get('n', 0)} matched"
+                )
+                print(
+                    "Suite gates: PASSED"
+                    if metrics.get("passed_gates")
+                    else f"Suite gates: FAILED {metrics.get('gate_failures')}"
+                )
+            else:
+                title = (
+                    "Retrieval mode compare"
+                    if args.compare_modes
+                    else "Retrieval eval"
+                )
+                print(format_metrics_report(metrics, title=title))
         return 0 if passed else 1
 
 

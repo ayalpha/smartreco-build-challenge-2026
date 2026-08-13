@@ -970,6 +970,84 @@ def bootstrap_metric_ci(
     }
 
 
+def mcnemar_test(
+    y_true: Sequence[Label],
+    y_pred_a: Sequence[Label],
+    y_pred_b: Sequence[Label],
+) -> dict[str, float]:
+    """McNemar's test contingency for two binary classifiers on the same labels.
+
+    Returns b (A wrong, B right), c (A right, B wrong), and the discordant
+    statistic ``(|b-c| - 1)^2 / (b+c)`` with continuity correction when b+c>0.
+    Not a full p-value (no scipy); useful as a regression signal when comparing
+    thresholded graders.
+    """
+    if not (len(y_true) == len(y_pred_a) == len(y_pred_b)):
+        raise ValueError("y_true/y_pred_a/y_pred_b length mismatch")
+    b = c = 0
+    for truth, a, pred_b in zip(y_true, y_pred_a, y_pred_b):
+        a_ok = a == truth
+        b_ok = pred_b == truth
+        if (not a_ok) and b_ok:
+            b += 1
+        elif a_ok and (not b_ok):
+            c += 1
+    denom = b + c
+    if denom == 0:
+        stat = 0.0
+    else:
+        stat = (abs(b - c) - 1) ** 2 / denom
+    return {
+        "b": float(b),
+        "c": float(c),
+        "n_discordant": float(denom),
+        "statistic": stat,
+    }
+
+
+def k_sweep_table(
+    retrieved: Sequence[Sequence[Label]],
+    relevant: Sequence[Iterable[Label]],
+    *,
+    ks: Sequence[int],
+    catalog_size: Optional[int] = None,
+    min_relevant: int = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> dict[str, dict[str, float]]:
+    """Build ``{str(k): {precision, recall, f1, hit, accuracy, success, mrr}}``.
+
+    Convenience for parameter sweeps over cutoff k without re-invoking the
+    retriever.
+    """
+    table: dict[str, dict[str, float]] = {}
+    for k in ks:
+        report = ranking_metrics_at_k(
+            retrieved,
+            relevant,
+            k=int(k),
+            catalog_size=catalog_size,
+            zero_division=zero_division,
+        )
+        block = report.to_dict()
+        block["success_at_k"] = success_at_k(
+            retrieved,
+            relevant,
+            k=int(k),
+            min_relevant=min_relevant,
+        )
+        table[str(int(k))] = {
+            "k": float(k),
+            "accuracy": block["accuracy_at_k"],
+            "precision": block["precision_at_k"],
+            "recall": block["recall_at_k"],
+            "f1": block["f1_at_k"],
+            "hit_at_k": block["hit_at_k"],
+            "mrr": block["mrr"],
+            "success_at_k": block["success_at_k"],
+        }
+    return table
+
+
 def _log2(value: float) -> float:
     """log2 without importing math (keeps the module stdlib-light)."""
     from math import log2

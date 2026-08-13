@@ -480,6 +480,49 @@ GOLDEN_RERANK_FIXTURES: tuple[dict[str, Any], ...] = (
 )
 
 
+def load_label_fixture(data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a JSON/dict classification fixture.
+
+    Expected shape::
+
+        {
+          "id": "...",
+          "y_true": [...],
+          "y_pred": [...],          # optional if scores present
+          "scores": [...],          # optional
+          "threshold": 0.5,         # optional
+          "expected": {"accuracy": ..., "precision": ..., "recall": ..., "f1": ...}
+        }
+    """
+    if "y_true" not in data:
+        raise ValueError("label fixture requires y_true")
+    y_true = list(data["y_true"])
+    y_pred = list(data.get("y_pred") or [])
+    scores = list(data.get("scores") or [])
+    if not y_pred and not scores:
+        raise ValueError("label fixture requires y_pred or scores")
+    if scores and len(scores) != len(y_true):
+        raise ValueError("scores length must match y_true")
+    if y_pred and len(y_pred) != len(y_true):
+        raise ValueError("y_pred length must match y_true")
+    return {
+        "id": str(data.get("id") or "anonymous"),
+        "y_true": y_true,
+        "y_pred": y_pred,
+        "scores": scores,
+        "threshold": float(data.get("threshold", 0.5)),
+        "expected": dict(data.get("expected") or {}),
+        "notes": str(data.get("notes") or ""),
+    }
+
+
+def load_label_fixtures(
+    items: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Normalize a list of label fixtures."""
+    return [load_label_fixture(item) for item in items]
+
+
 #: Multi-class fixtures: expected keys use ``accuracy`` plus micro/macro F1.
 GOLDEN_MULTICLASS_FIXTURES: tuple[dict[str, Any], ...] = (
     {

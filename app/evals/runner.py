@@ -26,7 +26,9 @@ from app.evals.metrics import (
     bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
+    k_sweep_table,
     matthews_corrcoef,
+    mcnemar_test,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
     metrics_delta,
@@ -243,6 +245,14 @@ def run_retrieval_eval(
         min_relevant=params.min_relevant,
     )
     metrics["min_relevant"] = params.min_relevant
+    metrics["k_sweep"] = k_sweep_table(
+        ranked_lists,
+        gold_lists,
+        ks=params.effective_ks(),
+        catalog_size=ranking_catalog_size,
+        min_relevant=params.min_relevant,
+        zero_division=params.zero_division,
+    )
 
     if active_filters is not None:
         metrics["filters"] = active_filters.describe()
@@ -630,3 +640,213 @@ def report_retrieval_eval(
     """Run retrieval eval and format for stdout."""
     metrics = run_retrieval_eval(db, params=params)
     return format_metrics_report(metrics, title="Retrieval eval", as_json=as_json)
+
+
+def compare_thresholds(
+    y_true: Sequence[Any],
+    scores: Sequence[float],
+    *,
+    threshold_a: float,
+    threshold_b: float,
+    positive_label: Any = 1,
+) -> dict[str, Any]:
+    """Compare two score thresholds with full metrics + McNemar discordant counts.
+
+    Useful when tuning the agent heuristic threshold (0.35) vs a stricter 0.5.
+    """
+    neg = 0 if positive_label != 0 else -1
+    pred_a = scores_to_labels(
+        scores, threshold=threshold_a, positive_label=positive_label, negative_label=neg
+    )
+    pred_b = scores_to_labels(
+        scores, threshold=threshold_b, positive_label=positive_label, negative_label=neg
+    )
+    metrics_a = run_classification_eval(
+        y_true,
+        pred_a,
+        params=EvalParams(
+            average="binary",
+            positive_label=positive_label,
+            relevance_threshold=threshold_a,
+        ),
+    )
+    metrics_b = run_classification_eval(
+        y_true,
+        pred_b,
+        params=EvalParams(
+            average="binary",
+            positive_label=positive_label,
+            relevance_threshold=threshold_b,
+        ),
+    )
+    return {
+        "task": "threshold_compare",
+        "threshold_a": threshold_a,
+        "threshold_b": threshold_b,
+        "a": {
+            key: metrics_a[key]
+            for key in ("accuracy", "precision", "recall", "f1", "mcc")
+            if key in metrics_a
+        },
+        "b": {
+            key: metrics_b[key]
+            for key in ("accuracy", "precision", "recall", "f1", "mcc")
+            if key in metrics_b
+        },
+        "delta_b_minus_a": metrics_delta(metrics_a, metrics_b),
+        "mcnemar": mcnemar_test(y_true, pred_a, pred_b),
+    }
+
+
+def run_eval_suite(
+    db: Session,
+    *,
+    params: Optional[EvalParams] = None,
+    include_classification_fixtures: bool = True,
+    include_grader_fixtures: bool = True,
+    include_rerank_fixtures: bool = True,
+    include_mode_compare: bool = False,
+) -> dict[str, Any]:
+    """Run the full offline suite and return a single nested metrics report.
+
+    Sections
+    --------
+    * ``retrieval`` — golden retrieval cases
+    * ``classification_fixtures`` — label fixtures with expected APRF
+    * ``grader_fixtures`` — score-threshold grader cases
+    * ``rerank_fixtures`` — blend vs judge/retrieval orderings
+    * ``mode_compare`` — optional hybrid vs keyword
+    """
+    from app.evals.datasets import (
+        GOLDEN_CLASSIFICATION_FIXTURES,
+        GOLDEN_GRADER_SCORE_FIXTURES,
+        GOLDEN_RERANK_FIXTURES,
+    )
+
+    params = params or DEFAULT_EVAL_PARAMS
+    suite: dict[str, Any] = {
+        "task": "eval_suite",
+        "params": params.to_dict(),
+    }
+
+    suite["retrieval"] = run_retrieval_eval(db, params=params)
+
+    if include_classification_fixtures:
+        cls_rows = []
+        for fixture in GOLDEN_CLASSIFICATION_FIXTURES:
+            if fixture.scores:
+                metrics = run_classification_eval(
+                    list(fixture.y_true),
+                    y_pred=[],
+                    scores=list(fixture.scores),
+                    params=EvalParams(
+                        average="binary",
+                        relevance_threshold=0.5,
+                        thresholds=(0.3, 0.5, 0.8),
+                    ),
+                )
+            else:
+                metrics = run_classification_eval(
+                    list(fixture.y_true),
+                    list(fixture.y_pred),
+                    params=EvalParams(average="binary"),
+                )
+            row = {
+                "id": fixture.id,
+                "accuracy": metrics.get("accuracy"),
+                "precision": metrics.get("precision"),
+                "recall": metrics.get("recall"),
+                "f1": metrics.get("f1"),
+                "expected": fixture.expected,
+                "match": all(
+                    abs(float(metrics.get(k, -1)) - float(v)) < 1e-9
+                    for k, v in fixture.expected.items()
+                ),
+            }
+            cls_rows.append(row)
+        suite["classification_fixtures"] = {
+            "n": len(cls_rows),
+            "n_match": sum(1 for r in cls_rows if r["match"]),
+            "rows": cls_rows,
+        }
+
+    if include_grader_fixtures:
+        grader_rows = []
+        for fixture in GOLDEN_GRADER_SCORE_FIXTURES:
+            metrics = run_grader_threshold_eval(
+                fixture["items"],
+                params=EvalParams(
+                    relevance_threshold=fixture["threshold"],
+                    thresholds=(0.25, 0.35, 0.5, 0.65),
+                    n_bootstrap=0,
+                ),
+            )
+            grader_rows.append(
+                {
+                    "id": fixture["id"],
+                    "accuracy": metrics.get("accuracy"),
+                    "precision": metrics.get("precision"),
+                    "recall": metrics.get("recall"),
+                    "f1": metrics.get("f1"),
+                    "match": all(
+                        abs(float(metrics.get(k, -1)) - float(v)) < 1e-9
+                        for k, v in fixture["expected"].items()
+                    ),
+                }
+            )
+        suite["grader_fixtures"] = {
+            "n": len(grader_rows),
+            "n_match": sum(1 for r in grader_rows if r["match"]),
+            "rows": grader_rows,
+        }
+
+    if include_rerank_fixtures:
+        rerank_rows = []
+        for fixture in GOLDEN_RERANK_FIXTURES:
+            metrics = run_rerank_eval(
+                fixture["candidates"],
+                params=EvalParams(
+                    k=fixture["k"],
+                    judge_weight=params.judge_weight,
+                    retrieval_weight=params.retrieval_weight,
+                    relevance_threshold=params.relevance_threshold,
+                    min_relevant=1,
+                ),
+            )
+            rerank_rows.append(
+                {
+                    "id": fixture["id"],
+                    "accuracy": metrics.get("accuracy"),
+                    "precision": metrics.get("precision"),
+                    "recall": metrics.get("recall"),
+                    "f1": metrics.get("f1"),
+                    "blend": metrics.get("orderings", {}).get("blend", {}),
+                }
+            )
+        suite["rerank_fixtures"] = {"n": len(rerank_rows), "rows": rerank_rows}
+
+    if include_mode_compare:
+        suite["mode_compare"] = compare_retrieval_modes(
+            db,
+            modes=("hybrid", "keyword"),
+            params=params.with_updates(include_per_case=False),
+            baseline="keyword",
+        )
+
+    # Suite-level pass: retrieval gates + all classification/grader fixtures match.
+    failures: list[str] = []
+    if not suite["retrieval"].get("passed_gates", True):
+        failures.extend(
+            f"retrieval:{f}" for f in suite["retrieval"].get("gate_failures", [])
+        )
+    for section in ("classification_fixtures", "grader_fixtures"):
+        block = suite.get(section)
+        if not block:
+            continue
+        if block["n_match"] != block["n"]:
+            failures.append(
+                f"{section}: {block['n_match']}/{block['n']} fixtures matched"
+            )
+    suite["passed_gates"] = not failures
+    suite["gate_failures"] = failures
+    return suite

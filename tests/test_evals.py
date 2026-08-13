@@ -27,6 +27,8 @@ from app.evals.datasets import (
     GOLDEN_RETRIEVAL_CASES,
     RetrievalCase,
     filter_cases,
+    load_label_fixture,
+    load_label_fixtures,
     resolve_cases,
 )
 from app.evals.metrics import (
@@ -39,7 +41,9 @@ from app.evals.metrics import (
     classification_metrics_bundle,
     confusion_counts,
     fbeta_score,
+    k_sweep_table,
     matthews_corrcoef,
+    mcnemar_test,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
     metrics_delta,
@@ -62,7 +66,9 @@ from app.evals.report import (
 )
 from app.evals.runner import (
     compare_retrieval_modes,
+    compare_thresholds,
     run_classification_eval,
+    run_eval_suite,
     run_grader_threshold_eval,
     run_rerank_eval,
     run_retrieval_eval,
@@ -1265,3 +1271,123 @@ class TestSuccessAtKAndRerankBlend:
         assert DEFAULT_EVAL_PARAMS.k == 3
         assert STRICT_EVAL_PARAMS.min_f1 == 0.3
         assert STRICT_EVAL_PARAMS.min_success_at_k == 0.2
+
+
+class TestMcNemarKSweepFixturesAndSuite:
+    def test_mcnemar_identical_predictors(self) -> None:
+        result = mcnemar_test([1, 0, 1, 0], [1, 0, 1, 0], [1, 0, 1, 0])
+        assert result["n_discordant"] == 0.0
+        assert result["statistic"] == 0.0
+
+    def test_mcnemar_detects_discordance(self) -> None:
+        # A wrong on first, B wrong on second
+        result = mcnemar_test(
+            [1, 1, 0, 0],
+            [0, 1, 0, 0],
+            [1, 0, 0, 0],
+        )
+        assert result["b"] == 1.0
+        assert result["c"] == 1.0
+        assert result["n_discordant"] == 2.0
+
+    def test_compare_thresholds_035_vs_05(self) -> None:
+        y_true = [1, 1, 0, 0]
+        scores = [0.4, 0.3, 0.36, 0.1]
+        # t=0.35 → pred [1,0,1,0]; t=0.5 → pred [0,0,0,0]
+        result = compare_thresholds(
+            y_true, scores, threshold_a=0.35, threshold_b=0.5
+        )
+        assert result["task"] == "threshold_compare"
+        assert result["a"]["accuracy"] == pytest.approx(0.5)
+        assert result["b"]["accuracy"] == pytest.approx(0.5)
+        assert result["b"]["recall"] == pytest.approx(0.0)
+        assert "mcnemar" in result
+        assert "delta_b_minus_a" in result
+
+    def test_k_sweep_table_keys(self) -> None:
+        table = k_sweep_table(
+            [[1, 2, 3, 4]],
+            [{1, 3}],
+            ks=(1, 2, 3),
+            min_relevant=1,
+        )
+        assert set(table) == {"1", "2", "3"}
+        for block in table.values():
+            for key in ("accuracy", "precision", "recall", "f1", "success_at_k"):
+                assert key in block
+                assert 0.0 <= block[key] <= 1.0 + 1e-9
+        # At k=1 if top is relevant → P=1
+        assert table["1"]["precision"] in (0.0, 1.0)
+
+    def test_load_label_fixture_and_eval(self) -> None:
+        raw = {
+            "id": "json-style",
+            "y_true": [1, 0, 1, 0],
+            "y_pred": [1, 0, 0, 0],
+            "expected": {
+                "accuracy": 0.75,
+                "precision": 1.0,
+                "recall": 0.5,
+                "f1": 2.0 / 3.0,
+            },
+        }
+        fixture = load_label_fixture(raw)
+        metrics = run_classification_eval(
+            fixture["y_true"], fixture["y_pred"], params=EvalParams(average="binary")
+        )
+        for key, expected in fixture["expected"].items():
+            assert metrics[key] == pytest.approx(expected)
+        batch = load_label_fixtures([raw, {
+            "id": "scores",
+            "y_true": [1, 0],
+            "scores": [0.9, 0.1],
+            "threshold": 0.5,
+            "expected": {"accuracy": 1.0, "precision": 1.0, "recall": 1.0, "f1": 1.0},
+        }])
+        assert len(batch) == 2
+
+    def test_retrieval_includes_k_sweep(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(1, 3),
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_relevant=1,
+            ),
+        )
+        assert "k_sweep" in metrics
+        assert "1" in metrics["k_sweep"] and "3" in metrics["k_sweep"]
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics["k_sweep"]["3"]
+        text = format_metrics_report(metrics, title="Sweep")
+        assert "k-sweep" in text
+
+    def test_run_eval_suite_matches_fixtures(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        suite = run_eval_suite(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(3,),
+                split="train",
+                limit_cases=4,
+                include_per_case=False,
+                min_hit_rate=0.0,
+                min_relevant=1,
+            ),
+            include_mode_compare=False,
+        )
+        assert suite["task"] == "eval_suite"
+        assert suite["retrieval"]["n_cases"] >= 1
+        assert suite["classification_fixtures"]["n_match"] == suite[
+            "classification_fixtures"
+        ]["n"]
+        assert suite["grader_fixtures"]["n_match"] == suite["grader_fixtures"]["n"]
+        assert suite["rerank_fixtures"]["n"] >= 1
+        assert suite["passed_gates"] is True

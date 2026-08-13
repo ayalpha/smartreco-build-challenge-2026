@@ -187,6 +187,23 @@ def format_metrics_report(
                 f"F1={_format_value(row.get('f1'), 4)}"
             )
 
+    k_sweep = metrics.get("k_sweep")
+    if isinstance(k_sweep, dict) and k_sweep:
+        sections.append("")
+        sections.append("k-sweep (accuracy / precision / recall / f1)")
+        for k_label, block in sorted(k_sweep.items(), key=lambda kv: int(kv[0])):
+            if not isinstance(block, dict):
+                continue
+            sections.append(
+                f"  — k={k_label}: "
+                f"A={_format_value(block.get('accuracy'), 4)} "
+                f"P={_format_value(block.get('precision'), 4)} "
+                f"R={_format_value(block.get('recall'), 4)} "
+                f"F1={_format_value(block.get('f1'), 4)} "
+                f"hit={_format_value(block.get('hit_at_k'), 4)} "
+                f"succ={_format_value(block.get('success_at_k'), 4)}"
+            )
+
     modes = metrics.get("modes")
     if isinstance(modes, dict) and modes:
         sections.append("")
