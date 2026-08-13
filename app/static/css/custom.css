@@ -592,6 +592,16 @@ summary {
   outline-offset: 2px;
 }
 
+/* Stretched card link: one focusable product link covering the card face.
+   Interactive siblings (save/cart) sit at z-index 10 inside an isolated stacking
+   context so they remain clickable and keyboard-reachable. */
+.card-stretched-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
 /* --------------------------------------------------------------------------
    Accessibility: honour a user's reduced-motion preference
    -------------------------------------------------------------------------- */
