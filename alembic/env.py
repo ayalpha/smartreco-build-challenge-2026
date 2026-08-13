@@ -45,6 +45,11 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        # The initial schema deliberately retains defensive database-side
+        # defaults while the ORM uses equivalent Python-side defaults. Treating
+        # that distinction as drift would generate migrations that remove the
+        # production safeguards.
+        compare_server_default=False,
         # SQLite cannot ALTER most columns, so batch mode is required there.
         render_as_batch=settings.is_sqlite,
     )
@@ -65,7 +70,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=False,
             render_as_batch=settings.is_sqlite,
         )
         with context.begin_transaction():
