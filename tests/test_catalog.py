@@ -146,6 +146,24 @@ class TestAuthentication:
         assert response.status_code == 303
         assert response.headers["location"] == "/"
 
+    def test_backslash_open_redirect_is_blocked(
+        self, client: TestClient, make_user: Any
+    ) -> None:
+        make_user(email="backslash@test.dev", password="correctpassword1")
+
+        response = client.post(
+            "/login",
+            data={
+                "email": "backslash@test.dev",
+                "password": "correctpassword1",
+                "next": "/\\evil.example/steal",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/"
+
     def test_password_hashing_is_not_reversible(self) -> None:
         from app.security import hash_password, verify_password
 

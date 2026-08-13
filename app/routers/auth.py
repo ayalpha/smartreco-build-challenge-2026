@@ -57,7 +57,16 @@ def _set_auth_cookie(response: Response, token: str) -> None:
 
 def _safe_next(target: Optional[str]) -> str:
     """Validate a ``?next=`` redirect target to prevent open redirects."""
-    if not target or not target.startswith("/") or target.startswith("//"):
+    # Backslashes are treated as path separators by browsers during URL
+    # navigation, so ``/\\evil.example`` can become a scheme-relative redirect
+    # even though it does not literally start with ``//``.
+    if (
+        not target
+        or not target.startswith("/")
+        or target.startswith("//")
+        or "\\" in target
+        or any(ord(char) < 32 for char in target)
+    ):
         return "/"
     return target
 
