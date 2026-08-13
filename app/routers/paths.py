@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.agent.mesh_client import MeshUnavailableError, call_llm_json, mesh_available
 from app.database import get_db
-from app.dependencies import get_current_user, render_page
+from app.dependencies import get_current_user, get_current_user_optional, render_page
 from app.models.event import Event, EventType
 from app.models.product import Product
 from app.models.recommendation import Recommendation
@@ -352,15 +352,19 @@ def build_path(
 @router.get("/path", include_in_schema=False)
 def path_page(
     request: Request,
-    user: User = Depends(get_current_user),
+    user: Optional[User] = Depends(get_current_user_optional),
 ) -> Response:
-    """Render the path builder form, pre-filled with any saved career goal."""
+    """Render the path builder (guests see a teaser + sign-in CTA).
+
+    Building a path still requires authentication on POST so behaviour signals
+    and ``career_goal`` persistence stay account-scoped.
+    """
     return render_page(
         request,
         "path.html",
         user,
         path=None,
-        goal=user.career_goal or "",
+        goal=(user.career_goal if user else None) or "",
         weekly_hours=5,
         weekly_hour_choices=_WEEKLY_HOUR_CHOICES,
     )

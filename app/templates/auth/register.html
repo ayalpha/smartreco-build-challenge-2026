@@ -13,6 +13,7 @@
     </p>
 
     <form method="post" action="/register" class="mt-7 space-y-4">
+      <input type="hidden" name="next" value="{{ next_url if next_url is defined else '/' }}">
       <div>
         <label for="full_name" class="block text-sm font-medium text-mist-200">
           Name <span class="text-mist-500">(optional)</span>
@@ -45,7 +46,8 @@
 
     <p class="mt-6 text-center text-sm text-mist-500">
       Already registered?
-      <a href="/login" class="font-semibold text-signal-400 transition hover:text-signal-300">Sign in</a>
+      <a href="/login{% if next_url is defined and next_url and next_url != '/' %}?next={{ next_url | urlencode }}{% endif %}"
+         class="font-semibold text-signal-400 transition hover:text-signal-300">Sign in</a>
     </p>
   </div>
 

@@ -20,6 +20,7 @@
       not in the catalog.
     </p>
 
+    {% if current_user %}
     <form method="post" action="/path" class="mt-8 grid gap-3 sm:grid-cols-[1fr,150px,auto]">
       <div>
         <label class="sr-only" for="goal">Career or skill goal</label>
@@ -45,10 +46,24 @@
         Build my path
       </button>
     </form>
-
     <p class="mt-4 font-mono text-[11px] text-mist-500">
-      requires sign-in · uses Mesh when available · heuristic fallback otherwise
+      uses Mesh when available · heuristic fallback otherwise · goal saved to your account
     </p>
+    {% else %}
+    <div class="mt-8 flex flex-wrap items-center gap-3">
+      <a href="/login?next=/path"
+         class="rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)]">
+        Sign in to build your path
+      </a>
+      <a href="/register?next=/path"
+         class="rounded-lg border border-ink-600 px-5 py-3 text-sm font-semibold text-mist-200 transition hover:border-ink-500 hover:text-white">
+        Create an account
+      </a>
+    </div>
+    <p class="mt-4 font-mono text-[11px] text-mist-500">
+      free · personalised from your behaviour once you start browsing
+    </p>
+    {% endif %}
   </div>
 </section>
 

@@ -6,9 +6,23 @@ from app.models.user import User
 from app.routers.paths import behaviour_context, build_path, fallback_path
 
 
-def test_path_page_requires_auth(client) -> None:
-    """Guests are redirected to login rather than seeing an empty form."""
+def test_path_page_is_public_with_sign_in_cta(client) -> None:
+    """Guests can view the Path teaser; building requires sign-in."""
     response = client.get("/path", headers={"Accept": "text/html"}, follow_redirects=False)
+    assert response.status_code == 200
+    assert "Become what you want" in response.text
+    assert "/login?next=/path" in response.text
+    assert "Sign in to build your path" in response.text
+
+
+def test_path_post_requires_auth(client) -> None:
+    """POST /path must not build a path for anonymous visitors."""
+    response = client.post(
+        "/path",
+        data={"goal": "Become an engineer", "weekly_hours": "5"},
+        headers={"Accept": "text/html"},
+        follow_redirects=False,
+    )
     assert response.status_code == 303
     assert "/login" in response.headers.get("location", "")
 

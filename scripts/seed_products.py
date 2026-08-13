@@ -1024,6 +1024,12 @@ def seed_demo_users(db: Session) -> dict[str, int]:
             user.is_active = True
             logger.info("Demo user %s already exists (id=%s)", email, user.id)
 
+        # Demo learner starts with a Path goal so /path and the agent have a
+        # career signal out of the box (idempotent: only fills when blank).
+        if role == UserRole.USER and not (user.career_goal or "").strip():
+            user.career_goal = "Become an agentic AI engineer"
+            logger.info("Set demo career_goal for %s", email)
+
         ids["admin" if role == UserRole.ADMIN else "learner"] = int(user.id)
 
     db.flush()
