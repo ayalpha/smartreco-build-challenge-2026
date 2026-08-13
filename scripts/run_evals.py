@@ -111,6 +111,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip nDCG@k in the ranking report",
     )
+    parser.add_argument(
+        "--no-map",
+        action="store_true",
+        help="Skip MAP@k in the ranking report",
+    )
+    parser.add_argument("--min-ndcg", type=float, default=None)
+    parser.add_argument("--min-map", type=float, default=None)
+    parser.add_argument(
+        "--f-beta",
+        type=float,
+        action="append",
+        dest="f_betas",
+        default=None,
+        help="Extra F-beta value to report (repeatable; default 0.5 and 2.0)",
+    )
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     parser.add_argument(
         "--no-per-case",
@@ -154,8 +169,12 @@ def main(argv: list[str] | None = None) -> int:
         min_f1=args.min_f1,
         min_accuracy=args.min_accuracy,
         min_mrr=args.min_mrr,
+        min_ndcg=args.min_ndcg,
+        min_map=args.min_map,
         use_catalog_accuracy=not args.no_catalog_accuracy,
         include_ndcg=not args.no_ndcg,
+        include_map=not args.no_map,
+        f_betas=tuple(args.f_betas) if args.f_betas else (0.5, 2.0),
         include_per_case=not args.no_per_case,
         extra={"tag": args.tag} if args.tag else {},
     )

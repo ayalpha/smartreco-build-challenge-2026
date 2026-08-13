@@ -7,7 +7,7 @@ The runner resolves matchers against the live SQL catalog at eval time.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, Optional, Sequence
 
 from sqlalchemy.orm import Session
@@ -156,6 +156,22 @@ GOLDEN_RETRIEVAL_CASES: tuple[RetrievalCase, ...] = (
         notes="Ops paraphrase; should prefer Kubernetes over agentic courses.",
         tags=("devops", "paraphrase"),
     ),
+    RetrievalCase(
+        id="state-machines-python",
+        query="python state machine agent orchestration with retries",
+        relevant_title_substrings=("LangGraph",),
+        split="train",
+        notes="LangGraph description mentions state machines and refinement retries.",
+        tags=("agentic", "keyword"),
+    ),
+    RetrievalCase(
+        id="message-passing-agents",
+        query="message passing between cooperating agents that plan and critique",
+        relevant_title_substrings=("Multi-Agent",),
+        split="test",
+        notes="Near-copy of multi-agent course description.",
+        tags=("agentic", "paraphrase"),
+    ),
 )
 
 
@@ -244,3 +260,65 @@ def resolve_cases(
             }
         )
     return resolved
+
+
+@dataclass(frozen=True)
+class ClassificationFixture:
+    """Hand-labelled y_true / y_pred (or scores) for metric regression tests."""
+
+    id: str
+    y_true: tuple[Any, ...]
+    y_pred: tuple[Any, ...] = ()
+    scores: tuple[float, ...] = ()
+    expected: dict[str, float] = field(default_factory=dict)
+    notes: str = ""
+
+
+#: Deterministic label fixtures with expected accuracy/precision/recall/F1.
+GOLDEN_CLASSIFICATION_FIXTURES: tuple[ClassificationFixture, ...] = (
+    ClassificationFixture(
+        id="perfect-binary",
+        y_true=(1, 1, 0, 0),
+        y_pred=(1, 1, 0, 0),
+        expected={"accuracy": 1.0, "precision": 1.0, "recall": 1.0, "f1": 1.0},
+        notes="All labels correct.",
+    ),
+    ClassificationFixture(
+        id="balanced-errors",
+        y_true=(1, 1, 0, 0),
+        y_pred=(1, 0, 1, 0),
+        expected={"accuracy": 0.5, "precision": 0.5, "recall": 0.5, "f1": 0.5},
+        notes="TP=FP=TN=FN=1.",
+    ),
+    ClassificationFixture(
+        id="precision-oriented",
+        y_true=(1, 1, 0, 0, 0),
+        y_pred=(1, 0, 0, 0, 0),
+        expected={
+            "accuracy": 0.8,
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 2.0 / 3.0,
+        },
+        notes="TP=1 FP=0 FN=1 TN=3.",
+    ),
+    ClassificationFixture(
+        id="recall-oriented",
+        y_true=(1, 1, 0, 0),
+        y_pred=(1, 1, 1, 0),
+        expected={
+            "accuracy": 0.75,
+            "precision": 2.0 / 3.0,
+            "recall": 1.0,
+            "f1": 0.8,
+        },
+        notes="TP=2 FP=1 FN=0 TN=1.",
+    ),
+    ClassificationFixture(
+        id="score-threshold-default",
+        y_true=(1, 1, 0, 0),
+        scores=(0.9, 0.4, 0.6, 0.1),
+        expected={"accuracy": 0.5, "precision": 0.5, "recall": 0.5, "f1": 0.5},
+        notes="At threshold 0.5 → pred [1,0,1,0].",
+    ),
+)

@@ -34,7 +34,7 @@ Given retrieved ranked ids ``R`` and relevant id set ``G``:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Hashable, Iterable, Optional, Sequence, Union
+from typing import Any, Hashable, Iterable, Mapping, Optional, Sequence, Union
 
 Label = Hashable
 BinaryLike = Union[int, bool, str]
@@ -137,9 +137,31 @@ def _safe_div(numerator: float, denominator: float, zero_division: float) -> flo
 
 
 def _f1(precision: float, recall: float, zero_division: float) -> float:
+    return fbeta_score(precision, recall, beta=1.0, zero_division=zero_division)
+
+
+def fbeta_score(
+    precision: float,
+    recall: float,
+    *,
+    beta: float = 1.0,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """F-beta = (1+β²)·P·R / (β²·P + R).
+
+    β=1 → F1 (balanced). β>1 weights recall higher (e.g. F2); β<1 weights
+    precision higher (e.g. F0.5).
+    """
+    if beta < 0:
+        raise ValueError(f"beta must be >= 0, got {beta}")
     if precision == 0.0 and recall == 0.0:
         return float(zero_division)
-    return _safe_div(2.0 * precision * recall, precision + recall, zero_division)
+    beta2 = beta * beta
+    return _safe_div(
+        (1.0 + beta2) * precision * recall,
+        beta2 * precision + recall,
+        zero_division,
+    )
 
 
 def confusion_counts(
@@ -534,6 +556,12 @@ def threshold_sweep_metrics(
                 "precision": report.precision,
                 "recall": report.recall,
                 "f1": report.f1,
+                "f0_5": fbeta_score(
+                    report.precision, report.recall, beta=0.5, zero_division=zero_division
+                ),
+                "f2": fbeta_score(
+                    report.precision, report.recall, beta=2.0, zero_division=zero_division
+                ),
                 "specificity": specificity_from_confusion(
                     counts, zero_division=zero_division
                 ),
@@ -545,6 +573,20 @@ def threshold_sweep_metrics(
             }
         )
     return rows
+
+
+def best_threshold_by_metric(
+    sweep_rows: Sequence[Mapping[str, Any]],
+    *,
+    metric: str = "f1",
+) -> dict[str, Any]:
+    """Pick the sweep row with the highest ``metric`` (ties → lower threshold)."""
+    if not sweep_rows:
+        raise ValueError("sweep_rows is empty")
+    return max(
+        sweep_rows,
+        key=lambda row: (float(row.get(metric, float("-inf"))), -float(row["threshold"])),
+    )
 
 
 def ndcg_at_k(
@@ -596,6 +638,133 @@ def mean_ndcg_at_k(
         for ranked, gold in zip(retrieved, relevant)
     ]
     return sum(scores) / len(scores)
+
+
+def average_precision_at_k(
+    ranked_ids: Sequence[Label],
+    relevant_ids: Iterable[Label],
+    *,
+    k: int,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Average Precision@k for one query (binary relevance).
+
+    AP@k = (1/min(|G|, k)) · Σ_{i=1..k} P@i · rel_i
+    """
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+    gold = set(relevant_ids)
+    if not gold:
+        return float(zero_division)
+
+    hits = 0
+    sum_precisions = 0.0
+    top = list(ranked_ids)[:k]
+    for idx, doc_id in enumerate(top, start=1):
+        if doc_id in gold:
+            hits += 1
+            sum_precisions += hits / idx
+    denom = min(len(gold), k)
+    return _safe_div(sum_precisions, denom, zero_division)
+
+
+def mean_average_precision_at_k(
+    retrieved: Sequence[Sequence[Label]],
+    relevant: Sequence[Iterable[Label]],
+    *,
+    k: int,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """MAP@k = mean of AP@k over queries."""
+    if len(retrieved) != len(relevant):
+        raise ValueError("retrieved/relevant length mismatch")
+    if not retrieved:
+        return float(zero_division)
+    scores = [
+        average_precision_at_k(ranked, gold, k=k, zero_division=zero_division)
+        for ranked, gold in zip(retrieved, relevant)
+    ]
+    return sum(scores) / len(scores)
+
+
+def classification_metrics_bundle(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+    betas: Sequence[float] = (0.5, 1.0, 2.0),
+) -> dict[str, Any]:
+    """Single-call binary accuracy/precision/recall/F1 plus F-beta variants.
+
+    Useful for tests and score-based graders that want a flat dict without
+    picking an ``average`` mode up front.
+    """
+    report = classification_metrics(
+        y_true,
+        y_pred,
+        average="binary",
+        positive_label=positive_label,
+        zero_division=zero_division,
+    )
+    counts = confusion_counts(y_true, y_pred, positive_label=positive_label)
+    payload: dict[str, Any] = {
+        "accuracy": report.accuracy,
+        "precision": report.precision,
+        "recall": report.recall,
+        "f1": report.f1,
+        "specificity": specificity_from_confusion(counts, zero_division=zero_division),
+        "balanced_accuracy": balanced_accuracy_from_confusion(
+            counts, zero_division=zero_division
+        ),
+        "support": report.support,
+        "confusion": counts.to_dict(),
+    }
+    for beta in betas:
+        payload[_beta_key(float(beta))] = fbeta_score(
+            report.precision, report.recall, beta=float(beta), zero_division=zero_division
+        )
+    return payload
+
+
+def _beta_key(beta: float) -> str:
+    """Stable metric name for a beta value (``f1``, ``f2``, ``f0_5``, …)."""
+    if beta == 1.0:
+        return "f1"
+    if float(beta) == int(beta):
+        return f"f{int(beta)}"
+    return f"f{str(beta).replace('.', '_')}"
+
+
+def metrics_delta(
+    baseline: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+    *,
+    keys: Optional[Sequence[str]] = None,
+) -> dict[str, float]:
+    """candidate − baseline for shared numeric scalar keys."""
+    if keys is None:
+        keys = (
+            "accuracy",
+            "precision",
+            "recall",
+            "f1",
+            "precision_at_k",
+            "recall_at_k",
+            "f1_at_k",
+            "hit_at_k",
+            "mrr",
+            "ndcg_at_k",
+            "map_at_k",
+        )
+    delta: dict[str, float] = {}
+    for key in keys:
+        if key in baseline and key in candidate:
+            try:
+                delta[key] = float(candidate[key]) - float(baseline[key])
+            except (TypeError, ValueError):
+                continue
+    return delta
 
 
 def _log2(value: float) -> float:

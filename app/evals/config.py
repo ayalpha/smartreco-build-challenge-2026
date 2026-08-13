@@ -48,6 +48,10 @@ class EvalParams:
             view; when False, accuracy@k aliases hit@k.
         include_per_case: Whether the report embeds per-query breakdowns.
         include_ndcg: Whether to attach nDCG@k alongside ranking metrics.
+        include_map: Whether to attach MAP@k alongside ranking metrics.
+        f_betas: Extra F-beta scores to report in classification bundles
+            (always includes F1 via beta=1 implicitly in primary metrics).
+        min_ndcg / min_map: Optional ranking quality gates.
         zero_division: Value used when a metric denominator is zero
             (sklearn-compatible convention; default 0.0).
     """
@@ -64,6 +68,8 @@ class EvalParams:
     min_f1: Optional[float] = None
     min_hit_rate: Optional[float] = None
     min_mrr: Optional[float] = None
+    min_ndcg: Optional[float] = None
+    min_map: Optional[float] = None
     split: SplitName = "all"
     case_ids: Optional[tuple[str, ...]] = None
     exclude_case_ids: Optional[tuple[str, ...]] = None
@@ -76,6 +82,8 @@ class EvalParams:
     use_catalog_accuracy: bool = True
     include_per_case: bool = True
     include_ndcg: bool = True
+    include_map: bool = True
+    f_betas: tuple[float, ...] = (0.5, 2.0)
     zero_division: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -103,6 +111,8 @@ class EvalParams:
             raise ValueError(
                 f"zero_division must be in [0, 1], got {self.zero_division}"
             )
+        if any(beta < 0 for beta in self.f_betas):
+            raise ValueError(f"f_betas must be >= 0, got {self.f_betas}")
 
     def effective_ks(self) -> tuple[int, ...]:
         """Return the cutoffs to evaluate (``ks`` if set, else ``(k,)``)."""
@@ -125,6 +135,7 @@ class EvalParams:
             "exclude_case_ids",
             "tags",
             "tag_any",
+            "f_betas",
         ):
             if data.get(key) is not None:
                 data[key] = list(data[key])
@@ -148,6 +159,7 @@ class EvalParams:
                 "exclude_case_ids",
                 "tags",
                 "tag_any",
+                "f_betas",
             } and isinstance(value, list):
                 kwargs[key] = tuple(value)
             else:
@@ -168,6 +180,8 @@ class EvalParams:
             ("f1", self.min_f1, ("f1", "f1_at_k")),
             ("hit_rate", self.min_hit_rate, ("hit_rate", "hit_at_k")),
             ("mrr", self.min_mrr, ("mrr",)),
+            ("ndcg", self.min_ndcg, ("ndcg_at_k", "ndcg")),
+            ("map", self.min_map, ("map_at_k", "map")),
         )
         for label, minimum, keys in checks:
             if minimum is None:

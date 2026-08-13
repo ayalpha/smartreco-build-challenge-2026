@@ -21,7 +21,10 @@ from app.evals.datasets import (
     resolve_cases,
 )
 from app.evals.metrics import (
+    best_threshold_by_metric,
     classification_metrics,
+    classification_metrics_bundle,
+    mean_average_precision_at_k,
     mean_ndcg_at_k,
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
@@ -146,6 +149,13 @@ def run_retrieval_eval(
                 k=cutoff,
                 zero_division=params.zero_division,
             )
+        if params.include_map:
+            block["map_at_k"] = mean_average_precision_at_k(
+                ranked_lists,
+                gold_lists,
+                k=cutoff,
+                zero_division=params.zero_division,
+            )
         by_k[str(cutoff)] = block
         if cutoff == params.k:
             primary = block
@@ -171,6 +181,13 @@ def run_retrieval_eval(
         positive_label=1,
         zero_division=params.zero_division,
     )
+    binary_bundle = classification_metrics_bundle(
+        y_true,
+        y_pred,
+        positive_label=1,
+        zero_division=params.zero_division,
+        betas=(1.0, *params.f_betas),
+    )
 
     metrics: dict[str, Any] = {
         "task": "retrieval",
@@ -183,6 +200,7 @@ def run_retrieval_eval(
         "by_k": by_k,
         "classification": {
             "binary": multi_binary.to_dict(),
+            "binary_bundle": binary_bundle,
             "micro": multi_micro.to_dict(),
             "macro": multi_macro.to_dict(),
             "weighted": multi_weighted.to_dict(),
@@ -259,6 +277,19 @@ def run_classification_eval(
     if "per_class" in primary:
         metrics["per_class"] = primary["per_class"]
 
+    betas = (1.0, *params.f_betas)
+    metrics["bundle"] = classification_metrics_bundle(
+        y_true,
+        predictions,
+        positive_label=params.positive_label,
+        zero_division=params.zero_division,
+        betas=betas,
+    )
+    # Surface F-beta aliases at top level for easy asserts / gates.
+    for key in ("f0_5", "f2", "specificity", "balanced_accuracy"):
+        if key in metrics["bundle"]:
+            metrics[key] = metrics["bundle"][key]
+
     sweep_thresholds = params.thresholds
     if scores is not None and sweep_thresholds:
         metrics["by_threshold"] = threshold_sweep_metrics(
@@ -268,6 +299,9 @@ def run_classification_eval(
             positive_label=params.positive_label,
             negative_label=negative_label,
             zero_division=params.zero_division,
+        )
+        metrics["best_threshold_by_f1"] = best_threshold_by_metric(
+            metrics["by_threshold"], metric="f1"
         )
 
     passed, failures = params.passes_gates(metrics)

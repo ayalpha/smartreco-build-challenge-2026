@@ -15,16 +15,23 @@ from sqlalchemy.orm import Session
 
 from app.evals.config import DEFAULT_EVAL_PARAMS, EvalParams
 from app.evals.datasets import (
+    GOLDEN_CLASSIFICATION_FIXTURES,
     GOLDEN_RETRIEVAL_CASES,
     RetrievalCase,
     filter_cases,
     resolve_cases,
 )
 from app.evals.metrics import (
+    average_precision_at_k,
     balanced_accuracy_from_confusion,
+    best_threshold_by_metric,
     classification_metrics,
+    classification_metrics_bundle,
     confusion_counts,
+    fbeta_score,
+    mean_average_precision_at_k,
     mean_ndcg_at_k,
+    metrics_delta,
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
     ranking_metrics_at_k,
@@ -715,7 +722,8 @@ class TestExpandedDatasetFilters:
         assert a != c or len(a) < 2
 
     def test_golden_set_grew(self) -> None:
-        assert len(GOLDEN_RETRIEVAL_CASES) >= 12
+        assert len(GOLDEN_RETRIEVAL_CASES) >= 14
+        assert len(GOLDEN_CLASSIFICATION_FIXTURES) >= 5
 
 
 class TestRetrievalParamMatrix:
@@ -791,3 +799,108 @@ class TestRetrievalParamMatrix:
         metrics = run_retrieval_eval(db, params=params)
         assert metrics["n_cases"] == 3
         assert len(metrics["per_case"]) == 3
+
+    def test_map_and_ndcg_and_fbeta_bundle(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        params = EvalParams(
+            k=3,
+            ks=(1, 3),
+            split="train",
+            include_map=True,
+            include_ndcg=True,
+            include_per_case=False,
+            f_betas=(0.5, 2.0),
+            limit_cases=5,
+        )
+        metrics = run_retrieval_eval(db, params=params)
+        assert "map_at_k" in metrics["by_k"]["3"]
+        assert "ndcg_at_k" in metrics["by_k"]["3"]
+        assert 0.0 <= metrics["by_k"]["3"]["map_at_k"] <= 1.0 + 1e-9
+        bundle = metrics["classification"]["binary_bundle"]
+        for key in ("accuracy", "precision", "recall", "f1", "f0_5", "f2"):
+            assert key in bundle
+
+
+class TestFbetaMapAndDelta:
+    def test_fbeta_f1_matches_harmonic_mean(self) -> None:
+        p, r = 0.5, 1.0
+        assert fbeta_score(p, r, beta=1.0) == pytest.approx(2 * p * r / (p + r))
+        # F2 weights recall → higher than F1 when R > P
+        assert fbeta_score(p, r, beta=2.0) > fbeta_score(p, r, beta=1.0)
+        # F0.5 weights precision → lower than F1 when R > P
+        assert fbeta_score(p, r, beta=0.5) < fbeta_score(p, r, beta=1.0)
+
+    def test_map_perfect_and_partial(self) -> None:
+        assert average_precision_at_k([1, 2, 3], {1, 2}, k=2) == pytest.approx(1.0)
+        # hit only at rank 2 → AP = (1/1)*(1/2) / 1 = 0.5 for single relevant
+        assert average_precision_at_k([9, 1], {1}, k=2) == pytest.approx(0.5)
+        mean = mean_average_precision_at_k(
+            [[1, 2], [9, 1]], [{1}, {1}], k=2
+        )
+        assert 0.0 < mean <= 1.0
+
+    def test_metrics_delta_subtracts_shared_keys(self) -> None:
+        delta = metrics_delta(
+            {"accuracy": 0.5, "precision": 0.4, "extra": "x"},
+            {"accuracy": 0.8, "precision": 0.5, "recall": 0.9},
+        )
+        assert delta["accuracy"] == pytest.approx(0.3)
+        assert delta["precision"] == pytest.approx(0.1)
+        assert "recall" not in delta
+
+    def test_best_threshold_by_f1(self) -> None:
+        rows = threshold_sweep_metrics(
+            [1, 1, 0, 0],
+            [0.9, 0.4, 0.6, 0.1],
+            thresholds=(0.3, 0.5, 0.8),
+        )
+        best = best_threshold_by_metric(rows, metric="f1")
+        assert "threshold" in best
+        assert best["f1"] == max(r["f1"] for r in rows)
+
+
+class TestGoldenClassificationFixtures:
+    """Regression fixtures: expected accuracy/precision/recall/F1 must hold."""
+
+    @pytest.mark.parametrize(
+        "fixture",
+        list(GOLDEN_CLASSIFICATION_FIXTURES),
+        ids=[f.id for f in GOLDEN_CLASSIFICATION_FIXTURES],
+    )
+    def test_fixture_matches_expected(self, fixture: Any) -> None:
+        if fixture.scores:
+            metrics = run_classification_eval(
+                list(fixture.y_true),
+                y_pred=[],
+                scores=list(fixture.scores),
+                params=EvalParams(
+                    average="binary",
+                    relevance_threshold=0.5,
+                    thresholds=(0.3, 0.5, 0.8),
+                    f_betas=(0.5, 2.0),
+                ),
+            )
+            assert "best_threshold_by_f1" in metrics
+        else:
+            metrics = run_classification_eval(
+                list(fixture.y_true),
+                list(fixture.y_pred),
+                params=EvalParams(average="binary", f_betas=(0.5, 2.0)),
+            )
+        for key, expected in fixture.expected.items():
+            assert metrics[key] == pytest.approx(expected), (
+                f"{fixture.id}.{key}: {metrics[key]} != {expected}"
+            )
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics["bundle"]
+
+    def test_bundle_matches_classification_metrics(self) -> None:
+        y_true = [1, 0, 1, 0, 1]
+        y_pred = [1, 1, 0, 0, 1]
+        report = classification_metrics(y_true, y_pred, average="binary")
+        bundle = classification_metrics_bundle(y_true, y_pred)
+        assert bundle["accuracy"] == pytest.approx(report.accuracy)
+        assert bundle["precision"] == pytest.approx(report.precision)
+        assert bundle["recall"] == pytest.approx(report.recall)
+        assert bundle["f1"] == pytest.approx(report.f1)

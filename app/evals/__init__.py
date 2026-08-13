@@ -36,12 +36,18 @@ _EXPORTS: dict[str, str] = {
     "EvalParams": "app.evals.config",
     "RankingReport": "app.evals.metrics",
     "classification_metrics": "app.evals.metrics",
+    "classification_metrics_bundle": "app.evals.metrics",
     "confusion_counts": "app.evals.metrics",
+    "fbeta_score": "app.evals.metrics",
     "format_metrics_report": "app.evals.report",
+    "mean_average_precision_at_k": "app.evals.metrics",
+    "metrics_delta": "app.evals.metrics",
     "metrics_to_json": "app.evals.report",
     "metrics_to_table": "app.evals.report",
     "ranking_metrics_at_k": "app.evals.metrics",
+    "run_classification_eval": "app.evals.runner",
     "run_retrieval_eval": "app.evals.runner",
+    "threshold_sweep_metrics": "app.evals.metrics",
 }
 
 __all__ = sorted(_EXPORTS)
