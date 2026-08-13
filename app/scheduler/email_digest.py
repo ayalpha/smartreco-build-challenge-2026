@@ -20,6 +20,7 @@ import logging
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
+from pathlib import Path
 from typing import Any, Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -32,6 +33,7 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 
 _environment: Optional[Environment] = None
 
@@ -45,7 +47,7 @@ def _jinja() -> Environment:
     global _environment
     if _environment is None:
         _environment = Environment(
-            loader=FileSystemLoader("app/templates"),
+            loader=FileSystemLoader(str(TEMPLATES_DIR)),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
