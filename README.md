@@ -12,7 +12,7 @@ Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 ![LangGraph](https://img.shields.io/badge/LangGraph-state%20machine-1C3C3C)
 ![Qdrant](https://img.shields.io/badge/Qdrant-hybrid%20search-DC244C)
 ![Mesh API](https://img.shields.io/badge/all%20LLM%20calls-Mesh%20API-22c98a)
-![Tests](https://img.shields.io/badge/tests-153%20passing-22c98a)
+![Tests](https://img.shields.io/badge/tests-169%20passing-22c98a)
 
 
 <p align="center">
@@ -142,7 +142,7 @@ human-readable page at **`/architecture`**.
 | **Email** | SendGrid *or* SMTP *or* console | `console` is the default so digests work with no credentials |
 | **Frontend** | Jinja2 + vanilla JS + Tailwind CDN | No build step; the tracker is ~350 lines of dependency-free JS |
 | **Auth** | JWT (`python-jose`) + bcrypt | HttpOnly cookie for pages, Bearer token for API — one token type |
-| **Tests** | pytest — **153 tests, all passing** | Runs the real graph with no services and no keys |
+| **Tests** | pytest — **169 tests, all passing** | Runs the real graph with no services and no keys |
 
 ---
 
@@ -171,6 +171,7 @@ human-readable page at **`/architecture`**.
 - [x] **60-second polling** auto-refresh (accelerating to 6s while a run is in flight)
 - [x] **"Why this recommendation?"** expandable panel with interest signals + confidence bars
 - [x] **Loading skeleton states** while the agent is generating
+- [x] **Path option** — learners state a career/skill goal at `/path` (nav **Path**); hybrid retrieval + Mesh (or heuristic fallback) sequences real catalog courses; goal is saved as `User.career_goal` and biases the recommendation agent **and** the in-app assistant; JSON at `GET/POST /api/path`
 
 ### Bonus — all four, complete
 

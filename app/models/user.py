@@ -51,6 +51,9 @@ class User(Base):
 
     # --- personalisation hints, learned from behaviour or set by the user ---
     preferred_skill_level: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    #: Free-text career / skill goal from the Path builder (e.g. "AI platform engineer").
+    #: Fed into the recommendation agent as retrieval context when present.
+    career_goal: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     digest_opt_in: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     telegram_chat_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 

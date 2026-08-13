@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Your Path — {{ app_name }}{% endblock %}
+{% block description %}Turn the role you want into a personalized, catalog-grounded learning path powered by Nexora's agent stack.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden rounded-2xl border border-ink-700 bg-gradient-to-br from-ink-900 via-ink-900 to-ink-850 p-6 sm:p-10">
+  <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-iris-500/10 blur-3xl" aria-hidden="true"></div>
+  <div class="pointer-events-none absolute -bottom-24 -left-10 h-48 w-48 rounded-full bg-signal-500/5 blur-3xl" aria-hidden="true"></div>
+
+  <div class="relative max-w-3xl">
+    <p class="font-mono text-[11px] lowercase tracking-[.25em] text-iris-400">goal → evidence → curriculum</p>
+    <h1 class="mt-3 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+      Become what you want.
+    </h1>
+    <p class="mt-4 max-w-2xl text-base leading-7 text-mist-400">
+      Tell Nexora the role or skill trajectory you are aiming for. The path builder
+      combines your goal with behavioural signals (searches, clicks, active
+      recommendations), retrieves courses from the live catalog with hybrid search,
+      and sequences them into a practical path — never inventing courses that are
+      not in the catalog.
+    </p>
+
+    {% if current_user %}
+    <form method="post" action="/path" class="mt-8 space-y-3" id="path-form">
+      <div class="grid gap-3 sm:grid-cols-[1fr,150px,auto]">
+        <div>
+          <label class="sr-only" for="goal">Career or skill goal</label>
+          <input id="goal" name="goal" required minlength="3" maxlength="160"
+                 value="{{ goal }}"
+                 placeholder="e.g. Become an AI platform engineer"
+                 autocomplete="off"
+                 class="w-full rounded-lg border border-ink-600 bg-ink-950 px-4 py-3 text-white outline-none transition placeholder:text-mist-500 focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
+        </div>
+        <div>
+          <label class="sr-only" for="weekly_hours">Hours per week</label>
+          <select id="weekly_hours" name="weekly_hours"
+                  class="w-full rounded-lg border border-ink-600 bg-ink-950 px-3 py-3 text-mist-200 outline-none transition focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
+            {% for hours in weekly_hour_choices %}
+              <option value="{{ hours }}" {% if weekly_hours == hours %}selected{% endif %}>
+                {{ hours }} hrs/week
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit"
+                class="rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
+          Build my path
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-1.5" aria-label="Suggested goals">
+        {% for sample in [
+          'Become an agentic AI engineer',
+          'Become an MLOps engineer',
+          'Become a full-stack engineer',
+          'Become a data engineer'
+        ] %}
+          <button type="button"
+                  class="path-goal-chip rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-1 text-[11px] text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300"
+                  data-goal="{{ sample }}">{{ sample }}</button>
+        {% endfor %}
+      </div>
+    </form>
+    <script>
+      (function () {
+        var input = document.getElementById('goal');
+        if (!input) return;
+        document.querySelectorAll('.path-goal-chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            input.value = chip.getAttribute('data-goal') || '';
+            input.focus();
+          });
+        });
+      })();
+    </script>
+    <p class="mt-4 font-mono text-[11px] text-mist-500">
+      uses Mesh when available · heuristic fallback otherwise · goal saved to your account
+    </p>
+    {% else %}
+    <div class="mt-8 flex flex-wrap items-center gap-3">
+      <a href="/login?next=/path"
+         class="rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)]">
+        Sign in to build your path
+      </a>
+      <a href="/register?next=/path"
+         class="rounded-lg border border-ink-600 px-5 py-3 text-sm font-semibold text-mist-200 transition hover:border-ink-500 hover:text-white">
+        Create an account
+      </a>
+    </div>
+    <p class="mt-4 font-mono text-[11px] text-mist-500">
+      free · personalised from your behaviour once you start browsing
+    </p>
+    {% endif %}
+  </div>
+</section>
+
+{% if path %}
+<section class="mt-10" aria-live="polite">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="font-mono text-[10px] uppercase tracking-[.18em] text-signal-400">personalized path</p>
+      <h2 class="mt-2 text-3xl font-bold tracking-tight text-white">{{ path.headline }}</h2>
+      <p class="mt-2 max-w-3xl text-mist-400">{{ path.summary }}</p>
+    </div>
+    <span class="rounded-full border px-3 py-1 font-mono text-[10px]
+                 {% if path.degraded %}border-amber-500/30 bg-amber-500/10 text-amber-200
+                 {% else %}border-iris-500/30 bg-iris-500/10 text-iris-300{% endif %}">
+      {{ 'heuristic fallback' if path.degraded else 'mesh agent generated' }}
+    </span>
+  </div>
+
+  {% if path.interests %}
+  <div class="mt-5 flex flex-wrap items-center gap-2">
+    <span class="text-xs text-mist-500">Personalized with:</span>
+    {% for interest in path.interests %}
+      <span class="rounded-full border border-ink-700 bg-ink-900 px-2.5 py-1 text-xs text-mist-300">{{ interest }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if path.steps %}
+  <ol class="relative mt-8 space-y-5 before:absolute before:bottom-8 before:left-5 before:top-8 before:w-px before:bg-gradient-to-b before:from-signal-500 before:to-iris-500/20">
+    {% for step in path.steps %}
+    <li class="relative grid gap-4 rounded-xl border border-ink-700 bg-ink-900/80 p-5 pl-14 sm:grid-cols-[1fr,auto]">
+      <span class="absolute left-3 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-signal-500/40 bg-ink-950 font-mono text-sm font-bold text-signal-400"
+            aria-hidden="true">{{ step.order }}</span>
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-lg font-bold text-white">{{ step.title }}</h3>
+          {% if step.level %}
+            <span class="rounded bg-ink-800 px-2 py-0.5 font-mono text-[10px] lowercase text-mist-400">{{ step.level }}</span>
+          {% endif %}
+          {% if step.duration %}
+            <span class="font-mono text-[10px] text-mist-500">{{ step.duration }}</span>
+          {% endif %}
+        </div>
+        <p class="mt-2 text-sm leading-6 text-mist-400">{{ step.why }}</p>
+        <p class="mt-3 text-sm text-mist-200">
+          <span class="font-mono text-[10px] uppercase tracking-wider text-iris-400">milestone</span>
+          · {{ step.milestone }}
+        </p>
+      </div>
+      <div class="flex items-center gap-4 sm:flex-col sm:items-end sm:justify-center">
+        <span class="font-mono text-xs text-mist-500">
+          ~{{ step.weeks }} week{{ '' if step.weeks == 1 else 's' }}
+        </span>
+        <a href="/product/{{ step.product_id }}"
+           class="whitespace-nowrap rounded-md border border-ink-600 px-3 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/60 hover:text-white"
+           data-track-click="{{ step.product_id }}"
+           data-track-source="path">
+          View course →
+        </a>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <p class="mt-8 max-w-2xl text-sm text-mist-500">
+    Estimates assume ~{{ weekly_hours }} focused hours per week. Re-run the builder
+    after more browsing — stronger behavioural signal produces a sharper path.
+  </p>
+  {% else %}
+  <div class="mt-8 rounded-xl border border-ink-700 bg-ink-900/60 p-6 text-sm text-mist-400">
+    No catalog courses matched that goal yet. Try a broader target (e.g. “machine learning engineer”)
+    or browse the <a href="/catalog" class="text-signal-400 hover:text-signal-300">catalog</a> first
+    so the agent has more signal.
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

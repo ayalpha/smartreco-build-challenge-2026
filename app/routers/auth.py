@@ -156,9 +156,9 @@ def login_submit(
 
 
 @router.get("/register", include_in_schema=False)
-def register_page(request: Request) -> Response:
+def register_page(request: Request, next: str = "/") -> Response:
     """Render the registration form."""
-    return render_page(request, "auth/register.html")
+    return render_page(request, "auth/register.html", next_url=_safe_next(next))
 
 
 @router.post("/register", include_in_schema=False)
@@ -167,9 +167,11 @@ def register_submit(
     email: str = Form(...),
     password: str = Form(...),
     full_name: str = Form(""),
+    next: str = Form("/"),
     db: Session = Depends(get_db),
 ) -> Response:
     """Handle the registration form, then sign the new user straight in."""
+    safe_next = _safe_next(next)
     try:
         payload = RegisterRequest(
             email=email, password=password, full_name=full_name or None
@@ -177,18 +179,22 @@ def register_submit(
     except ValidationError as exc:
         first = exc.errors()[0]
         message = f"{'.'.join(str(p) for p in first.get('loc', []))}: {first.get('msg')}"
-        response = RedirectResponse(url="/register", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(
+            url=f"/register?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
         flash(response, f"Could not create your account — {message}", "error")
         return response
 
     try:
         user = _create_user(db, payload)
     except ValueError as exc:
-        response = RedirectResponse(url="/register", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(
+            url=f"/register?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
         flash(response, str(exc), "error")
         return response
 
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
     _set_auth_cookie(response, _token_for(user))
     flash(
         response,

@@ -44,7 +44,8 @@
 
     <p class="mt-6 text-center text-sm text-mist-500">
       No account yet?
-      <a href="/register" class="font-semibold text-signal-400 transition hover:text-signal-300">Create one</a>
+      <a href="/register{% if next_url is defined and next_url and next_url != '/' %}?next={{ next_url | urlencode }}{% endif %}"
+         class="font-semibold text-signal-400 transition hover:text-signal-300">Create one</a>
     </p>
   </div>
 

@@ -12,6 +12,7 @@ personalisation signals that produced the user's "For You" panel:
 * ``Recommendation.interest_signals`` — the topics, confidences and evidence the
   ``interest_extractor`` node extracted from that user's behaviour;
 * ``Recommendation.behavior_digest`` — the ``activity_analyzer`` node's summary;
+* ``User.career_goal`` — the goal they set on the Path builder (``/path``), when present;
 * the user's own recent :class:`~app.models.event.Event` rows;
 * live hybrid retrieval (:func:`app.vector_store.sync.hybrid_retrieve`) over the
   same Qdrant ⊕ BM25 index the agent uses, filtered by the user's inferred
@@ -149,7 +150,8 @@ def build_profile(db: Session, user: User) -> dict[str, Any]:
         user: The signed-in user.
 
     Returns:
-        ``{"signals", "digest", "recent_titles", "skill_levels", "has_agent_run"}``.
+        ``{"signals", "digest", "recent_titles", "skill_levels", "has_agent_run",
+        "career_goal"}``.
     """
     latest = db.scalars(
         select(Recommendation)
@@ -203,6 +205,23 @@ def build_profile(db: Session, user: User) -> dict[str, Any]:
             for category, count in sorted(counts.items(), key=lambda kv: -kv[1])[:5]
         ]
 
+    career_goal = (user.career_goal or "").strip() or None
+    if career_goal:
+        goal_l = career_goal.lower()
+        if not any(goal_l in str(s.get("topic", "")).lower() for s in signals):
+            signals = [
+                {
+                    "topic": career_goal[:80],
+                    "confidence": 0.9,
+                    "evidence": "Stated career goal from the Path builder.",
+                },
+                *signals,
+            ][:5]
+        if career_goal.lower() not in (digest or "").lower():
+            digest = (
+                f"{digest} Stated career goal from Path: {career_goal}.".strip()
+            )
+
     return {
         "signals": signals,
         "digest": digest,
@@ -210,6 +229,7 @@ def build_profile(db: Session, user: User) -> dict[str, Any]:
         "skill_levels": adjacency.get(dominant or "", []) or None,
         "has_agent_run": latest is not None,
         "event_count": len(events),
+        "career_goal": career_goal,
     }
 
 
@@ -224,7 +244,8 @@ def _retrieve_for_chat(
     topics = " ".join(
         str(signal.get("topic", "")) for signal in profile["signals"][:3]
     ).strip()
-    query = f"{message.strip()} {topics}".strip()
+    goal = (profile.get("career_goal") or "").strip()
+    query = f"{message.strip()} {topics} {goal}".strip()
 
     filters = SearchFilters(skill_levels=profile.get("skill_levels"))
     try:
@@ -283,7 +304,12 @@ def _build_chat_messages(
         for i, p in enumerate(candidates, start=1)
     ) or "(no candidates available)"
 
+    goal = (profile.get("career_goal") or "").strip()
+    goal_line = (
+        f"Stated career goal (from Path builder): {goal}\n\n" if goal else ""
+    )
     context = (
+        f"{goal_line}"
         f"Observed behaviour digest:\n{profile['digest'] or '(no digest yet)'}\n\n"
         f"Interest signals extracted from their activity:\n{signal_lines}\n\n"
         f"Courses they recently engaged with: "
@@ -302,11 +328,14 @@ def _fallback_reply(
 ) -> str:
     """Deterministic, still-personalised reply used when Mesh is unavailable."""
     top = profile["signals"][0]["topic"] if profile["signals"] else None
+    goal = (profile.get("career_goal") or "").strip()
     parts: list[str] = []
 
-    if top:
+    if goal:
+        parts.append(f"You set a Path goal to work toward {goal}.")
+    if top and (not goal or top.lower() not in goal.lower()):
         parts.append(f"Based on your activity, you keep returning to {top}.")
-    else:
+    elif not goal:
         parts.append("You are just getting started, so this is a broad starting point.")
 
     if candidates:
@@ -319,7 +348,10 @@ def _fallback_reply(
     else:
         parts.append("I could not find a close match for that in the catalog yet.")
 
-    parts.append("Open one and your For You panel will sharpen around it.")
+    if goal:
+        parts.append("Refine the path any time under Path in the navigation.")
+    else:
+        parts.append("Open one and your For You panel will sharpen around it.")
     return " ".join(parts)
 
 
@@ -390,6 +422,7 @@ def chat_profile(
         ],
         "event_count": profile["event_count"],
         "has_agent_run": profile["has_agent_run"],
+        "career_goal": profile.get("career_goal") or "",
         "display_name": user.display_name,
     }
 

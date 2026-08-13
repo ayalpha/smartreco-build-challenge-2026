@@ -82,6 +82,23 @@ class TestPersonalisationProfile:
         profile = build_profile(db, user)
         assert profile["signals"] == []
         assert profile["event_count"] == 0
+        assert profile.get("career_goal") is None
+
+    def test_profile_includes_path_career_goal(
+        self, db: Session, user: User
+    ) -> None:
+        """Path goals should appear even before behaviour or agent runs."""
+        user.career_goal = "Become an AI platform engineer"
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        profile = build_profile(db, user)
+
+        assert profile["career_goal"] == "Become an AI platform engineer"
+        assert profile["signals"]
+        assert any("AI platform" in str(s.get("topic")) for s in profile["signals"])
+        assert "AI platform" in (profile["digest"] or "")
 
 
 class TestChatEndpoint:
