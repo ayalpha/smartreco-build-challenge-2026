@@ -177,6 +177,40 @@ class EvalParams:
         """Return a copy with selected fields replaced (immutable helper)."""
         return replace(self, **changes)
 
+    @classmethod
+    def from_settings(cls, settings: Any = None, **overrides: Any) -> "EvalParams":
+        """Build params aligned with live app settings knobs.
+
+        Maps:
+        * ``vector_search_top_k`` → default ``k`` when not overridden
+        * ``agent_min_relevant_products`` → ``min_relevant``
+        * ``agent_final_product_count`` → included in ``ks`` sweep
+        """
+        if settings is None:
+            from app.config import get_settings
+
+            settings = get_settings()
+        top_k = int(getattr(settings, "vector_search_top_k", 12) or 12)
+        min_rel = int(getattr(settings, "agent_min_relevant_products", 3) or 3)
+        final_n = int(getattr(settings, "agent_final_product_count", 6) or 6)
+        primary_k = min(3, top_k)
+        ks = tuple(sorted({1, primary_k, min(final_n, top_k), top_k}))
+        base = cls(
+            k=primary_k,
+            ks=ks,
+            min_relevant=min_rel,
+            relevance_threshold=0.35,
+            judge_weight=0.65,
+            retrieval_weight=0.35,
+            thresholds=(0.25, 0.35, 0.5, 0.65, 0.8),
+            include_ndcg=True,
+            include_map=True,
+            include_calibration=True,
+        )
+        if overrides:
+            return base.with_updates(**overrides)
+        return base
+
     def to_dict(self) -> dict[str, Any]:
         """JSON-serialisable snapshot of the parameters."""
         data = asdict(self)

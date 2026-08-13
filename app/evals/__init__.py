@@ -51,6 +51,8 @@ _EXPORTS: dict[str, str] = {
     "metrics_to_json": "app.evals.report",
     "metrics_to_table": "app.evals.report",
     "write_metrics": "app.evals.report",
+    "aggregate_aprf": "app.evals.metrics",
+    "brier_score": "app.evals.metrics",
     "expected_calibration_error": "app.evals.metrics",
     "metric_formula_self_check": "app.evals.metrics",
     "ranking_metrics_at_k": "app.evals.metrics",

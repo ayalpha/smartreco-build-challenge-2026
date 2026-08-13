@@ -32,12 +32,14 @@ from app.evals.datasets import (
     resolve_cases,
 )
 from app.evals.metrics import (
+    aggregate_aprf,
     average_precision_at_k,
     balanced_accuracy_from_confusion,
     beats_baseline,
     best_threshold_by_metric,
     blend_rerank_scores,
     bootstrap_metric_ci,
+    brier_score,
     classification_metrics,
     classification_metrics_bundle,
     confusion_counts,
@@ -762,7 +764,7 @@ class TestExpandedDatasetFilters:
 
     def test_golden_set_grew(self) -> None:
         assert len(GOLDEN_RETRIEVAL_CASES) >= 16
-        assert len(GOLDEN_CLASSIFICATION_FIXTURES) >= 5
+        assert len(GOLDEN_CLASSIFICATION_FIXTURES) >= 7
 
 
 class TestRetrievalParamMatrix:
@@ -1620,3 +1622,113 @@ class TestCalibrationFormulaExportAndFilters:
         )
         for row in metrics["per_case"]:
             assert excluded not in row["retrieved_ids"]
+
+
+class TestSettingsBrierAndSuiteSummary:
+    def test_from_settings_maps_agent_knobs(self) -> None:
+        from app.config import get_settings
+
+        settings = get_settings()
+        params = EvalParams.from_settings(settings)
+        assert params.min_relevant == settings.agent_min_relevant_products
+        assert params.k <= settings.vector_search_top_k
+        assert settings.vector_search_top_k in params.effective_ks()
+        assert params.relevance_threshold == 0.35
+        assert params.judge_weight == 0.65
+
+    def test_from_settings_accepts_overrides(self) -> None:
+        params = EvalParams.from_settings(k=5, min_hit_rate=0.1)
+        assert params.k == 5
+        assert params.min_hit_rate == 0.1
+
+    def test_brier_perfect_and_worst(self) -> None:
+        assert brier_score([1, 0], [1.0, 0.0]) == pytest.approx(0.0)
+        assert brier_score([1, 0], [0.0, 1.0]) == pytest.approx(1.0)
+
+    def test_classification_includes_brier(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            y_pred=[],
+            scores=[0.9, 0.8, 0.2, 0.1],
+            params=EvalParams(include_calibration=True),
+        )
+        assert "brier" in metrics
+        assert 0.0 <= metrics["brier"] <= 1.0
+        assert metrics["calibration"]["brier"] == metrics["brier"]
+
+    def test_aggregate_aprf(self) -> None:
+        summary = aggregate_aprf(
+            [
+                {"accuracy": 1.0, "precision": 1.0, "recall": 0.5, "f1": 2.0 / 3.0},
+                {"accuracy": 0.5, "precision": 0.5, "recall": 0.5, "f1": 0.5},
+            ]
+        )
+        assert summary["accuracy"] == pytest.approx(0.75)
+        assert summary["precision"] == pytest.approx(0.75)
+        assert summary["recall"] == pytest.approx(0.5)
+
+    def test_suite_summary_aprf(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        suite = run_eval_suite(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(3,),
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_hit_rate=0.0,
+                min_relevant=1,
+            ),
+        )
+        assert "summary_aprf" in suite
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in suite["summary_aprf"]
+            assert 0.0 <= suite["summary_aprf"][key] <= 1.0 + 1e-9
+
+    def test_category_filter(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=4,
+                ks=(4,),
+                categories=("Agentic AI",),
+                tags=("agentic",),
+                include_per_case=True,
+                limit_cases=3,
+                min_hit_rate=0.0,
+            ),
+        )
+        assert metrics["filters"]["categories"] == ["Agentic AI"]
+        agentic_ids = {
+            p.id for p in products if (p.category or "") == "Agentic AI"
+        }
+        for row in metrics["per_case"]:
+            for pid in row["retrieved_ids"]:
+                assert pid in agentic_ids
+
+    @pytest.mark.parametrize(
+        "threshold,expected_acc",
+        [
+            (0.3, 0.75),  # pred [1,1,1,0] vs [1,1,0,0] → 3/4
+            (0.5, 0.5),   # pred [1,0,1,0] → 2/4
+            (0.8, 0.75),  # pred [1,0,0,0] → 3/4
+        ],
+    )
+    def test_threshold_param_affects_accuracy_precision_recall_f1(
+        self, threshold: float, expected_acc: float
+    ) -> None:
+        y_true = [1, 1, 0, 0]
+        scores = [0.9, 0.4, 0.6, 0.1]
+        metrics = run_classification_eval(
+            y_true,
+            y_pred=[],
+            scores=scores,
+            params=EvalParams(relevance_threshold=threshold),
+        )
+        assert metrics["accuracy"] == pytest.approx(expected_acc)
+        for key in ("precision", "recall", "f1"):
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9

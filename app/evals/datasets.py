@@ -361,6 +361,32 @@ GOLDEN_CLASSIFICATION_FIXTURES: tuple[ClassificationFixture, ...] = (
         },
         notes="Well-separated scores at default 0.5 threshold.",
     ),
+    ClassificationFixture(
+        id="imbalanced-majority-negative",
+        y_true=(1, 0, 0, 0, 0, 0, 0, 0),
+        y_pred=(1, 0, 0, 0, 0, 1, 0, 0),
+        # TP1 FP1 TN6 FN0 → Acc=7/8=0.875, P=0.5, R=1, F1=2/3
+        expected={
+            "accuracy": 0.875,
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1": 2.0 / 3.0,
+        },
+        notes="Imbalanced labels; accuracy high while precision is only 0.5.",
+    ),
+    ClassificationFixture(
+        id="all-positive-true",
+        y_true=(1, 1, 1, 1),
+        y_pred=(1, 1, 0, 1),
+        # TP3 FP0 TN0 FN1 → Acc=0.75, P=1, R=0.75, F1=2*1*0.75/1.75=6/7
+        expected={
+            "accuracy": 0.75,
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 2.0 * 1.0 * 0.75 / (1.0 + 0.75),
+        },
+        notes="No true negatives in the set.",
+    ),
 )
 
 

@@ -21,10 +21,12 @@ from app.evals.datasets import (
     resolve_cases,
 )
 from app.evals.metrics import (
+    aggregate_aprf,
     beats_baseline,
     best_threshold_by_metric,
     blend_rerank_scores,
     bootstrap_metric_ci,
+    brier_score,
     classification_metrics,
     classification_metrics_bundle,
     confusion_matrix_labels,
@@ -494,6 +496,10 @@ def run_classification_eval(
             positive_label=params.positive_label,
         )
         metrics["ece"] = metrics["calibration"]["ece"]
+        metrics["brier"] = brier_score(
+            y_true, scores, positive_label=params.positive_label
+        )
+        metrics["calibration"]["brier"] = metrics["brier"]
 
     passed, failures = params.passes_gates(metrics)
     metrics["passed_gates"] = passed
@@ -934,6 +940,22 @@ def run_eval_suite(
             failures.append(
                 f"{section}: {block['n_match']}/{block['n']} fixtures matched"
             )
+
+    # Aggregate accuracy/precision/recall/F1 across fixture rows + retrieval.
+    aprf_rows: list[dict[str, Any]] = []
+    for section in ("classification_fixtures", "grader_fixtures", "rerank_fixtures"):
+        block = suite.get(section) or {}
+        for row in block.get("rows") or []:
+            aprf_rows.append(row)
+    aprf_rows.append(
+        {
+            "accuracy": suite["retrieval"].get("accuracy"),
+            "precision": suite["retrieval"].get("precision"),
+            "recall": suite["retrieval"].get("recall"),
+            "f1": suite["retrieval"].get("f1"),
+        }
+    )
+    suite["summary_aprf"] = aggregate_aprf(aprf_rows)
     suite["passed_gates"] = not failures
     suite["gate_failures"] = failures
     return suite

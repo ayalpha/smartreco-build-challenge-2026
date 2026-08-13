@@ -192,7 +192,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--preset",
-        choices=("default", "agent", "strict"),
+        choices=("default", "agent", "strict", "settings"),
         default=None,
         help="Start from a named EvalParams preset before applying flags",
     )
@@ -267,12 +267,15 @@ def main(argv: list[str] | None = None) -> int:
     from app.evals.report import format_metrics_report, metrics_to_json
 
     init_db()
-    preset_map = {
-        "default": DEFAULT_EVAL_PARAMS,
-        "agent": AGENT_ALIGNED_EVAL_PARAMS,
-        "strict": STRICT_EVAL_PARAMS,
-    }
-    base = preset_map[args.preset] if args.preset else EvalParams()
+    if args.preset == "settings":
+        base = EvalParams.from_settings()
+    else:
+        preset_map = {
+            "default": DEFAULT_EVAL_PARAMS,
+            "agent": AGENT_ALIGNED_EVAL_PARAMS,
+            "strict": STRICT_EVAL_PARAMS,
+        }
+        base = preset_map[args.preset] if args.preset else EvalParams()
     overrides: dict = {
         "k": args.k,
         "split": args.split,

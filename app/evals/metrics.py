@@ -1258,6 +1258,49 @@ def expected_calibration_error(
     }
 
 
+def brier_score(
+    y_true: Sequence[Label],
+    scores: Sequence[float],
+    *,
+    positive_label: Label = 1,
+) -> float:
+    """Mean squared error between scores and binary labels (Brier score).
+
+    BS = (1/n) Σ (score_i − y_i)²  with y_i ∈ {0,1}. Lower is better.
+    """
+    if len(y_true) != len(scores):
+        raise ValueError("y_true/scores length mismatch")
+    if not y_true:
+        return 0.0
+    total = 0.0
+    for truth, score in zip(y_true, scores):
+        y = 1.0 if truth == positive_label else 0.0
+        s = min(max(float(score), 0.0), 1.0)
+        total += (s - y) ** 2
+    return total / len(y_true)
+
+
+def aggregate_aprf(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    keys: Sequence[str] = ("accuracy", "precision", "recall", "f1"),
+) -> dict[str, float]:
+    """Mean accuracy/precision/recall/F1 across a list of metric dicts."""
+    out: dict[str, float] = {}
+    for key in keys:
+        values: list[float] = []
+        for row in rows:
+            if key in row and row[key] is not None:
+                try:
+                    values.append(float(row[key]))
+                except (TypeError, ValueError):
+                    continue
+        if values:
+            out[key] = sum(values) / len(values)
+            out[f"{key}_n"] = float(len(values))
+    return out
+
+
 def metric_formula_self_check(
     *,
     tp: int,
