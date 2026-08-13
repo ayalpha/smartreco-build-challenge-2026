@@ -24,6 +24,8 @@ class EvalParams:
         ks: Optional multi-cutoff sweep; when set, reports metrics for each k.
         relevance_threshold: Minimum score to treat a scored item as positive
             when converting continuous scores → binary labels.
+        thresholds: Optional multi-threshold sweep for score-based classification
+            (precision/recall/F1/accuracy at each threshold).
         average: Aggregation for multi-class precision/recall/F1.
             - ``binary``: positive class only (requires ``positive_label``).
             - ``micro``: global TP/FP/FN (good for imbalanced multi-class).
@@ -32,11 +34,20 @@ class EvalParams:
         positive_label: Label treated as the positive class for binary mode.
         min_accuracy / min_precision / min_recall / min_f1: Optional gates.
             When set, :meth:`passes_gates` checks the metrics dict against them.
+        min_mrr: Optional gate on mean reciprocal rank.
         split: Filter golden cases by split tag (``all`` keeps everything).
         case_ids: If non-empty, only evaluate these case identifiers.
+        exclude_case_ids: Drop these case ids after other filters.
+        tags: Require cases to include *all* of these tags (AND).
+        tag_any: Require cases to include *any* of these tags (OR).
         limit_cases: Cap on how many cases to run (after split/id filters).
+        shuffle_cases: Shuffle filtered cases before ``limit_cases`` (uses seed).
+        seed: RNG seed for shuffle (and any future sampling).
         retrieval_mode: Which retriever the harness should call.
+        use_catalog_accuracy: When True, accuracy@k uses full-catalog binary
+            view; when False, accuracy@k aliases hit@k.
         include_per_case: Whether the report embeds per-query breakdowns.
+        include_ndcg: Whether to attach nDCG@k alongside ranking metrics.
         zero_division: Value used when a metric denominator is zero
             (sklearn-compatible convention; default 0.0).
     """
@@ -44,6 +55,7 @@ class EvalParams:
     k: int = 3
     ks: Optional[tuple[int, ...]] = None
     relevance_threshold: float = 0.5
+    thresholds: Optional[tuple[float, ...]] = None
     average: AverageMode = "binary"
     positive_label: Any = 1
     min_accuracy: Optional[float] = None
@@ -51,11 +63,19 @@ class EvalParams:
     min_recall: Optional[float] = None
     min_f1: Optional[float] = None
     min_hit_rate: Optional[float] = None
+    min_mrr: Optional[float] = None
     split: SplitName = "all"
     case_ids: Optional[tuple[str, ...]] = None
+    exclude_case_ids: Optional[tuple[str, ...]] = None
+    tags: Optional[tuple[str, ...]] = None
+    tag_any: Optional[tuple[str, ...]] = None
     limit_cases: Optional[int] = None
+    shuffle_cases: bool = False
+    seed: int = 0
     retrieval_mode: RetrievalMode = "hybrid"
+    use_catalog_accuracy: bool = True
     include_per_case: bool = True
+    include_ndcg: bool = True
     zero_division: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -69,6 +89,14 @@ class EvalParams:
             raise ValueError(
                 f"relevance_threshold must be in [0, 1], got {self.relevance_threshold}"
             )
+        if self.thresholds is not None:
+            if not self.thresholds:
+                raise ValueError("thresholds must be non-empty when provided")
+            for value in self.thresholds:
+                if not 0.0 <= float(value) <= 1.0:
+                    raise ValueError(
+                        f"each threshold must be in [0, 1], got {value}"
+                    )
         if self.limit_cases is not None and self.limit_cases < 1:
             raise ValueError(f"limit_cases must be >= 1, got {self.limit_cases}")
         if not 0.0 <= self.zero_division <= 1.0:
@@ -90,11 +118,41 @@ class EvalParams:
         """JSON-serialisable snapshot of the parameters."""
         data = asdict(self)
         # tuples survive asdict; keep them as lists for JSON dumps.
-        if data.get("ks") is not None:
-            data["ks"] = list(data["ks"])
-        if data.get("case_ids") is not None:
-            data["case_ids"] = list(data["case_ids"])
+        for key in (
+            "ks",
+            "thresholds",
+            "case_ids",
+            "exclude_case_ids",
+            "tags",
+            "tag_any",
+        ):
+            if data.get(key) is not None:
+                data[key] = list(data[key])
         return data
+
+    @classmethod
+    def from_mapping(cls, data: dict[str, Any]) -> "EvalParams":
+        """Build params from a plain dict (CLI / JSON fixtures / tests).
+
+        Unknown keys are ignored so fixture files can carry documentation fields.
+        """
+        known = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+        kwargs: dict[str, Any] = {}
+        for key, value in data.items():
+            if key not in known or value is None:
+                continue
+            if key in {
+                "ks",
+                "thresholds",
+                "case_ids",
+                "exclude_case_ids",
+                "tags",
+                "tag_any",
+            } and isinstance(value, list):
+                kwargs[key] = tuple(value)
+            else:
+                kwargs[key] = value
+        return cls(**kwargs)
 
     def passes_gates(self, metrics: dict[str, Any]) -> tuple[bool, list[str]]:
         """Check optional quality gates against a flat metrics mapping.
@@ -109,6 +167,7 @@ class EvalParams:
             ("recall", self.min_recall, ("recall", "recall_at_k")),
             ("f1", self.min_f1, ("f1", "f1_at_k")),
             ("hit_rate", self.min_hit_rate, ("hit_rate", "hit_at_k")),
+            ("mrr", self.min_mrr, ("mrr",)),
         )
         for label, minimum, keys in checks:
             if minimum is None:

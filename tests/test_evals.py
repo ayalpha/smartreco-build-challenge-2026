@@ -21,11 +21,16 @@ from app.evals.datasets import (
     resolve_cases,
 )
 from app.evals.metrics import (
+    balanced_accuracy_from_confusion,
     classification_metrics,
     confusion_counts,
+    mean_ndcg_at_k,
     multilabel_sets_to_binary_vectors,
+    ndcg_at_k,
     ranking_metrics_at_k,
     scores_to_labels,
+    specificity_from_confusion,
+    threshold_sweep_metrics,
 )
 from app.evals.report import format_metrics_report, metrics_to_json, metrics_to_table
 from app.evals.runner import run_classification_eval, run_retrieval_eval
@@ -540,3 +545,249 @@ class TestLazyPackageExports:
         assert callable(evals.ranking_metrics_at_k)
         assert callable(evals.run_retrieval_eval)
         assert callable(evals.format_metrics_report)
+
+
+# --------------------------------------------------------------------------- #
+# Expanded parameter matrix + extra metrics                                    #
+# --------------------------------------------------------------------------- #
+
+
+class TestParametrizedBinaryFixtures:
+    """Table-driven accuracy / precision / recall / F1 checks."""
+
+    @pytest.mark.parametrize(
+        "y_true,y_pred,expected",
+        [
+            # all correct
+            ([1, 0, 1, 0], [1, 0, 1, 0], (1.0, 1.0, 1.0, 1.0)),
+            # all wrong
+            ([1, 0], [0, 1], (0.0, 0.0, 0.0, 0.0)),
+            # high precision, low recall: TP=1 FP=0 FN=1 TN=1 → P=1 R=0.5 Acc=2/3 F1=2/3
+            ([1, 1, 0], [1, 0, 0], (2.0 / 3.0, 1.0, 0.5, 2.0 / 3.0)),
+            # low precision, high recall: TP=2 FP=1 FN=0 TN=0 → P=2/3 R=1 Acc=2/3 F1=0.8
+            ([1, 1, 0], [1, 1, 1], (2.0 / 3.0, 2.0 / 3.0, 1.0, 0.8)),
+        ],
+        ids=["perfect", "inverted", "prec_over_rec", "rec_over_prec"],
+    )
+    def test_binary_metric_table(
+        self,
+        y_true: list[int],
+        y_pred: list[int],
+        expected: tuple[float, float, float, float],
+    ) -> None:
+        report = classification_metrics(y_true, y_pred, average="binary")
+        acc, prec, rec, f1 = expected
+        assert report.accuracy == pytest.approx(acc)
+        assert report.precision == pytest.approx(prec)
+        assert report.recall == pytest.approx(rec)
+        assert report.f1 == pytest.approx(f1)
+
+    @pytest.mark.parametrize("average", ["binary", "micro", "macro", "weighted"])
+    def test_all_average_modes_emit_core_keys(self, average: str) -> None:
+        report = classification_metrics(
+            [0, 1, 2, 1], [0, 1, 1, 2], average=average  # type: ignore[arg-type]
+        )
+        payload = report.to_dict()
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert 0.0 <= payload[key] <= 1.0 + 1e-9
+
+
+class TestSpecificityBalancedAccuracyAndNdcg:
+    def test_specificity_and_balanced_accuracy(self) -> None:
+        # TP1 FP1 TN2 FN0 → sens=1, spec=2/3, bal=(1+2/3)/2 = 5/6
+        counts = confusion_counts([1, 0, 0, 0], [1, 1, 0, 0], positive_label=1)
+        assert specificity_from_confusion(counts) == pytest.approx(2.0 / 3.0)
+        assert balanced_accuracy_from_confusion(counts) == pytest.approx(5.0 / 6.0)
+
+    def test_ndcg_perfect_and_partial(self) -> None:
+        gold = {10, 20}
+        perfect = ndcg_at_k([10, 20, 30], gold, k=2)
+        assert perfect == pytest.approx(1.0)
+        # relevant only at rank 2
+        partial = ndcg_at_k([99, 10], {10}, k=2)
+        assert 0.0 < partial < 1.0
+        mean = mean_ndcg_at_k([[10, 20], [99, 10]], [{10}, {10}], k=2)
+        assert 0.0 < mean <= 1.0
+
+
+class TestThresholdSweep:
+    def test_sweep_returns_sorted_rows_with_core_metrics(self) -> None:
+        y_true = [1, 1, 0, 0]
+        scores = [0.9, 0.4, 0.6, 0.1]
+        rows = threshold_sweep_metrics(
+            y_true, scores, thresholds=(0.3, 0.5, 0.8)
+        )
+        assert [r["threshold"] for r in rows] == [0.3, 0.5, 0.8]
+        for row in rows:
+            for key in (
+                "accuracy",
+                "precision",
+                "recall",
+                "f1",
+                "specificity",
+                "balanced_accuracy",
+            ):
+                assert key in row
+                assert 0.0 <= row[key] <= 1.0 + 1e-9
+
+    def test_classification_eval_includes_by_threshold(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            y_pred=[0, 0, 0, 0],
+            scores=[0.9, 0.4, 0.6, 0.1],
+            params=EvalParams(
+                relevance_threshold=0.5,
+                thresholds=(0.3, 0.5, 0.8),
+                average="binary",
+            ),
+        )
+        assert "by_threshold" in metrics
+        assert len(metrics["by_threshold"]) == 3
+        # At 0.5: pred [1,0,1,0] → Acc/P/R/F1 = 0.5
+        mid = next(r for r in metrics["by_threshold"] if r["threshold"] == 0.5)
+        assert mid["accuracy"] == pytest.approx(0.5)
+        assert mid["precision"] == pytest.approx(0.5)
+        assert mid["recall"] == pytest.approx(0.5)
+        assert mid["f1"] == pytest.approx(0.5)
+
+
+class TestExpandedEvalParams:
+    def test_from_mapping_round_trip(self) -> None:
+        raw = {
+            "k": 5,
+            "ks": [1, 5],
+            "thresholds": [0.25, 0.75],
+            "tags": ["agentic"],
+            "min_mrr": 0.2,
+            "shuffle_cases": True,
+            "seed": 7,
+            "unknown_doc_field": "ignored",
+        }
+        params = EvalParams.from_mapping(raw)
+        assert params.k == 5
+        assert params.ks == (1, 5)
+        assert params.thresholds == (0.25, 0.75)
+        assert params.tags == ("agentic",)
+        assert params.min_mrr == 0.2
+        assert params.seed == 7
+        assert "unknown_doc_field" not in params.to_dict()
+
+    def test_mrr_gate(self) -> None:
+        params = EvalParams(min_mrr=0.9)
+        ok, failures = params.passes_gates({"mrr": 0.5})
+        assert ok is False
+        assert any("mrr" in f for f in failures)
+
+    def test_threshold_validation(self) -> None:
+        with pytest.raises(ValueError, match="threshold"):
+            EvalParams(thresholds=(1.5,))
+
+
+class TestExpandedDatasetFilters:
+    def test_exclude_and_tag_any_and_tags_and(self) -> None:
+        without_k8s = filter_cases(
+            GOLDEN_RETRIEVAL_CASES, exclude_case_ids=("kubernetes",)
+        )
+        assert all(c.id != "kubernetes" for c in without_k8s)
+
+        any_tags = filter_cases(
+            GOLDEN_RETRIEVAL_CASES, tag_any=("devops", "career")
+        )
+        assert any_tags
+        assert all(
+            {"devops", "career"}.intersection(set(c.tags)) for c in any_tags
+        )
+
+        and_tags = filter_cases(
+            GOLDEN_RETRIEVAL_CASES, tags=("agentic", "paraphrase")
+        )
+        assert and_tags
+        assert all(
+            "agentic" in c.tags and "paraphrase" in c.tags for c in and_tags
+        )
+
+    def test_shuffle_is_seeded(self) -> None:
+        a = [c.id for c in filter_cases(GOLDEN_RETRIEVAL_CASES, shuffle=True, seed=1)]
+        b = [c.id for c in filter_cases(GOLDEN_RETRIEVAL_CASES, shuffle=True, seed=1)]
+        c = [c.id for c in filter_cases(GOLDEN_RETRIEVAL_CASES, shuffle=True, seed=2)]
+        assert a == b
+        # With enough cases, different seeds almost always reorder.
+        assert a != c or len(a) < 2
+
+    def test_golden_set_grew(self) -> None:
+        assert len(GOLDEN_RETRIEVAL_CASES) >= 12
+
+
+class TestRetrievalParamMatrix:
+    """More retrieval harness configurations (parameters under test)."""
+
+    @pytest.mark.parametrize("mode", ["hybrid", "keyword"])
+    @pytest.mark.parametrize("k", [1, 3])
+    def test_modes_and_k_emit_metrics(
+        self, db: Session, products: list[Product], mode: str, k: int
+    ) -> None:
+        params = EvalParams(
+            k=k,
+            ks=(k,),
+            retrieval_mode=mode,  # type: ignore[arg-type]
+            split="train",
+            include_per_case=False,
+            include_ndcg=True,
+            limit_cases=4,
+        )
+        metrics = run_retrieval_eval(db, params=params)
+        assert metrics["n_cases"] >= 1
+        assert metrics["k"] == k
+        assert "ndcg_at_k" in metrics["by_k"][str(k)]
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+
+    def test_tag_filter_and_exclude_via_params(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        params = EvalParams(
+            k=2,
+            ks=(2,),
+            tags=("agentic",),
+            exclude_case_ids=("agentic-category",),
+            include_per_case=True,
+        )
+        metrics = run_retrieval_eval(db, params=params)
+        assert metrics["n_cases"] >= 1
+        ids = {row["id"] for row in metrics["per_case"]}
+        assert "agentic-category" not in ids
+
+    def test_use_catalog_accuracy_flag(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        base = EvalParams(
+            k=1,
+            ks=(1,),
+            case_ids=("langgraph-agents",),
+            use_catalog_accuracy=True,
+            include_per_case=False,
+            include_ndcg=False,
+        )
+        with_catalog = run_retrieval_eval(db, params=base)
+        without = run_retrieval_eval(
+            db, params=base.with_updates(use_catalog_accuracy=False)
+        )
+        # Hit rate is identical; accuracy definition may differ.
+        assert with_catalog["hit_at_k"] == without["hit_at_k"]
+        assert without["accuracy_at_k"] == without["hit_at_k"]
+
+    def test_shuffle_limit_seed(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        params = EvalParams(
+            k=1,
+            ks=(1,),
+            shuffle_cases=True,
+            seed=42,
+            limit_cases=3,
+            include_per_case=True,
+        )
+        metrics = run_retrieval_eval(db, params=params)
+        assert metrics["n_cases"] == 3
+        assert len(metrics["per_case"]) == 3

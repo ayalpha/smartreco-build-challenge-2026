@@ -56,17 +56,60 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Restrict to case id (repeatable)",
     )
     parser.add_argument("--limit-cases", type=int, default=None)
-    parser.add_argument("--tag", type=str, default=None, help="Filter cases by tag")
+    parser.add_argument("--tag", type=str, default=None, help="Filter cases by single tag")
+    parser.add_argument(
+        "--tags",
+        nargs="*",
+        default=None,
+        help="Require all of these tags (AND)",
+    )
+    parser.add_argument(
+        "--tag-any",
+        nargs="*",
+        default=None,
+        help="Require any of these tags (OR)",
+    )
+    parser.add_argument(
+        "--exclude-case-id",
+        action="append",
+        dest="exclude_case_ids",
+        default=None,
+        help="Exclude case id (repeatable)",
+    )
     parser.add_argument("--min-hit-rate", type=float, default=None)
     parser.add_argument("--min-precision", type=float, default=None)
     parser.add_argument("--min-recall", type=float, default=None)
     parser.add_argument("--min-f1", type=float, default=None)
     parser.add_argument("--min-accuracy", type=float, default=None)
+    parser.add_argument("--min-mrr", type=float, default=None)
     parser.add_argument(
         "--threshold",
         type=float,
         default=0.5,
         help="Relevance threshold stored on params (for score-based evals)",
+    )
+    parser.add_argument(
+        "--thresholds",
+        type=float,
+        nargs="*",
+        default=None,
+        help="Score thresholds for classification sweeps",
+    )
+    parser.add_argument("--seed", type=int, default=0, help="RNG seed for shuffle")
+    parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle filtered cases before limit",
+    )
+    parser.add_argument(
+        "--no-catalog-accuracy",
+        action="store_true",
+        help="Make accuracy@k alias hit@k instead of full-catalog binary accuracy",
+    )
+    parser.add_argument(
+        "--no-ndcg",
+        action="store_true",
+        help="Skip nDCG@k in the ranking report",
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     parser.add_argument(
@@ -97,13 +140,22 @@ def main(argv: list[str] | None = None) -> int:
         split=args.split,
         retrieval_mode=args.mode,
         case_ids=tuple(args.case_ids) if args.case_ids else None,
+        exclude_case_ids=tuple(args.exclude_case_ids) if args.exclude_case_ids else None,
+        tags=tuple(args.tags) if args.tags else None,
+        tag_any=tuple(args.tag_any) if args.tag_any else None,
         limit_cases=args.limit_cases,
+        shuffle_cases=args.shuffle,
+        seed=args.seed,
         relevance_threshold=args.threshold,
+        thresholds=tuple(args.thresholds) if args.thresholds else None,
         min_hit_rate=args.min_hit_rate,
         min_precision=args.min_precision,
         min_recall=args.min_recall,
         min_f1=args.min_f1,
         min_accuracy=args.min_accuracy,
+        min_mrr=args.min_mrr,
+        use_catalog_accuracy=not args.no_catalog_accuracy,
+        include_ndcg=not args.no_ndcg,
         include_per_case=not args.no_per_case,
         extra={"tag": args.tag} if args.tag else {},
     )

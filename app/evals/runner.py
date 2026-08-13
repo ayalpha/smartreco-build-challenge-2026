@@ -22,10 +22,12 @@ from app.evals.datasets import (
 )
 from app.evals.metrics import (
     classification_metrics,
+    mean_ndcg_at_k,
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
     ranking_metrics_at_k,
     scores_to_labels,
+    threshold_sweep_metrics,
 )
 from app.evals.report import format_metrics_report
 from app.vector_store.qdrant_client import SearchFilters
@@ -75,17 +77,24 @@ def run_retrieval_eval(
     """
     params = params or DEFAULT_EVAL_PARAMS
     raw_cases = list(cases) if cases is not None else list(GOLDEN_RETRIEVAL_CASES)
+    legacy_tag = (params.extra or {}).get("tag")
     selected = filter_cases(
         raw_cases,
         split=params.split,
         case_ids=params.case_ids,
+        exclude_case_ids=params.exclude_case_ids,
         limit=params.limit_cases,
-        tag=(params.extra or {}).get("tag"),
+        tag=legacy_tag,
+        tags=params.tags,
+        tag_any=params.tag_any,
+        shuffle=params.shuffle_cases,
+        seed=params.seed,
     )
     resolved = resolve_cases(db, selected)
     products = load_products(db)
     catalog_size = len(products)
     catalog_ids = [p.id for p in products]
+    ranking_catalog_size = catalog_size if params.use_catalog_accuracy else None
 
     max_k = max(params.effective_ks())
     retrieve = retriever or _default_retriever(params.retrieval_mode)
@@ -113,7 +122,7 @@ def run_retrieval_eval(
                     ranked,
                     gold,
                     k=params.k,
-                    catalog_size=catalog_size,
+                    catalog_size=ranking_catalog_size,
                     zero_division=params.zero_division,
                 )
             )
@@ -126,10 +135,17 @@ def run_retrieval_eval(
             ranked_lists,
             gold_lists,
             k=cutoff,
-            catalog_size=catalog_size,
+            catalog_size=ranking_catalog_size,
             zero_division=params.zero_division,
         )
         block = report.to_dict()
+        if params.include_ndcg:
+            block["ndcg_at_k"] = mean_ndcg_at_k(
+                ranked_lists,
+                gold_lists,
+                k=cutoff,
+                zero_division=params.zero_division,
+            )
         by_k[str(cutoff)] = block
         if cutoff == params.k:
             primary = block
@@ -201,13 +217,14 @@ def run_classification_eval(
     ``params.relevance_threshold`` before scoring — useful for grader outputs.
     """
     params = params or EvalParams(average="binary")
+    negative_label: Any = 0 if params.positive_label != 0 else -1
     predictions: Sequence[Any] = y_pred
     if scores is not None:
         predictions = scores_to_labels(
             scores,
             threshold=params.relevance_threshold,
             positive_label=params.positive_label,
-            negative_label=0 if params.positive_label != 0 else -1,
+            negative_label=negative_label,
         )
 
     averages = ("binary", "micro", "macro", "weighted")
@@ -241,6 +258,17 @@ def run_classification_eval(
         metrics["confusion"] = primary["confusion"]
     if "per_class" in primary:
         metrics["per_class"] = primary["per_class"]
+
+    sweep_thresholds = params.thresholds
+    if scores is not None and sweep_thresholds:
+        metrics["by_threshold"] = threshold_sweep_metrics(
+            y_true,
+            scores,
+            thresholds=sweep_thresholds,
+            positive_label=params.positive_label,
+            negative_label=negative_label,
+            zero_division=params.zero_division,
+        )
 
     passed, failures = params.passes_gates(metrics)
     metrics["passed_gates"] = passed

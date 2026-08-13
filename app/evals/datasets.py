@@ -132,6 +132,30 @@ GOLDEN_RETRIEVAL_CASES: tuple[RetrievalCase, ...] = (
         notes="Any Agentic AI course is relevant.",
         tags=("agentic", "category"),
     ),
+    RetrievalCase(
+        id="rrf-fusion-keywords",
+        query="reciprocal rank fusion dense sparse retrieval",
+        relevant_title_substrings=("Vector Databases", "Agentic RAG"),
+        split="train",
+        notes="RRF language appears in both vector DB and RAG course copy.",
+        tags=("retrieval", "keyword"),
+    ),
+    RetrievalCase(
+        id="blameless-postmortem",
+        query="blameless postmortem action items for engineers",
+        relevant_title_substrings=("Writing for Engineers", "Postmortems"),
+        split="test",
+        notes="Paraphrase of career writing course outcomes.",
+        tags=("career", "paraphrase"),
+    ),
+    RetrievalCase(
+        id="helm-rollouts",
+        query="helm rollout strategies resource limits and probes",
+        relevant_title_substrings=("Kubernetes",),
+        split="test",
+        notes="Ops paraphrase; should prefer Kubernetes over agentic courses.",
+        tags=("devops", "paraphrase"),
+    ),
 )
 
 
@@ -149,8 +173,13 @@ def filter_cases(
     *,
     split: str = "all",
     case_ids: Optional[Sequence[str]] = None,
+    exclude_case_ids: Optional[Sequence[str]] = None,
     limit: Optional[int] = None,
     tag: Optional[str] = None,
+    tags: Optional[Sequence[str]] = None,
+    tag_any: Optional[Sequence[str]] = None,
+    shuffle: bool = False,
+    seed: int = 0,
 ) -> list[RetrievalCase]:
     """Apply split / id / tag / limit filters used by :class:`EvalParams`."""
     selected = list(cases)
@@ -159,9 +188,31 @@ def filter_cases(
     if case_ids:
         allowed = set(case_ids)
         selected = [c for c in selected if c.id in allowed]
+    if exclude_case_ids:
+        blocked = set(exclude_case_ids)
+        selected = [c for c in selected if c.id not in blocked]
     if tag:
         needle = tag.lower()
         selected = [c for c in selected if needle in {t.lower() for t in c.tags}]
+    if tags:
+        required = {t.lower() for t in tags}
+        selected = [
+            c
+            for c in selected
+            if required.issubset({t.lower() for t in c.tags})
+        ]
+    if tag_any:
+        allowed_tags = {t.lower() for t in tag_any}
+        selected = [
+            c
+            for c in selected
+            if allowed_tags.intersection({t.lower() for t in c.tags})
+        ]
+    if shuffle:
+        import random
+
+        rng = random.Random(seed)
+        rng.shuffle(selected)
     if limit is not None:
         selected = selected[:limit]
     return selected

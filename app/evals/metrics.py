@@ -471,3 +471,135 @@ def multilabel_sets_to_binary_vectors(
             y_true.append(1 if label in gold_set else 0)
             y_pred.append(1 if label in pred_set else 0)
     return y_true, y_pred
+
+
+def specificity_from_confusion(
+    counts: ConfusionCounts, *, zero_division: float = _DEFAULT_ZERO
+) -> float:
+    """Specificity = TN / (TN + FP)."""
+    return _safe_div(counts.tn, counts.tn + counts.fp, zero_division)
+
+
+def balanced_accuracy_from_confusion(
+    counts: ConfusionCounts, *, zero_division: float = _DEFAULT_ZERO
+) -> float:
+    """Balanced accuracy = (sensitivity + specificity) / 2.
+
+    Sensitivity is recall = TP/(TP+FN). Useful under class imbalance where
+    plain accuracy is dominated by the majority class.
+    """
+    sensitivity = _safe_div(counts.tp, counts.tp + counts.fn, zero_division)
+    specificity = specificity_from_confusion(counts, zero_division=zero_division)
+    return 0.5 * (sensitivity + specificity)
+
+
+def threshold_sweep_metrics(
+    y_true: Sequence[Label],
+    scores: Sequence[float],
+    *,
+    thresholds: Sequence[float],
+    positive_label: Label = 1,
+    negative_label: Label = 0,
+    zero_division: float = _DEFAULT_ZERO,
+) -> list[dict[str, Any]]:
+    """Accuracy / precision / recall / F1 at each score threshold.
+
+    Returns one dict per threshold (sorted ascending), suitable for plotting a
+    discrete precision–recall / F1 curve without extra dependencies.
+    """
+    if len(y_true) != len(scores):
+        raise ValueError(
+            f"y_true/scores length mismatch: {len(y_true)} vs {len(scores)}"
+        )
+    rows: list[dict[str, Any]] = []
+    for threshold in sorted(float(t) for t in thresholds):
+        y_pred = scores_to_labels(
+            scores,
+            threshold=threshold,
+            positive_label=positive_label,
+            negative_label=negative_label,
+        )
+        report = classification_metrics(
+            y_true,
+            y_pred,
+            average="binary",
+            positive_label=positive_label,
+            zero_division=zero_division,
+        )
+        counts = confusion_counts(y_true, y_pred, positive_label=positive_label)
+        rows.append(
+            {
+                "threshold": threshold,
+                "accuracy": report.accuracy,
+                "precision": report.precision,
+                "recall": report.recall,
+                "f1": report.f1,
+                "specificity": specificity_from_confusion(
+                    counts, zero_division=zero_division
+                ),
+                "balanced_accuracy": balanced_accuracy_from_confusion(
+                    counts, zero_division=zero_division
+                ),
+                "support": report.support,
+                "confusion": counts.to_dict(),
+            }
+        )
+    return rows
+
+
+def ndcg_at_k(
+    ranked_ids: Sequence[Label],
+    relevant_ids: Iterable[Label],
+    *,
+    k: int,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Binary-relevance nDCG@k.
+
+    DCG@k = Σ_{i=1..k} rel_i / log2(i+1) with rel_i ∈ {0,1}.
+    IDCG@k uses the ideal ranking that puts all |G| relevants first.
+    """
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+    gold = set(relevant_ids)
+    if not gold:
+        return float(zero_division)
+
+    def _dcg(rels: Sequence[int]) -> float:
+        total = 0.0
+        for idx, rel in enumerate(rels, start=1):
+            if rel:
+                total += 1.0 / _log2(idx + 1)
+        return total
+
+    gains = [1 if doc_id in gold else 0 for doc_id in list(ranked_ids)[:k]]
+    dcg = _dcg(gains)
+    ideal_count = min(len(gold), k)
+    idcg = _dcg([1] * ideal_count)
+    return _safe_div(dcg, idcg, zero_division)
+
+
+def mean_ndcg_at_k(
+    retrieved: Sequence[Sequence[Label]],
+    relevant: Sequence[Iterable[Label]],
+    *,
+    k: int,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Mean nDCG@k over a query batch."""
+    if len(retrieved) != len(relevant):
+        raise ValueError("retrieved/relevant length mismatch")
+    if not retrieved:
+        return float(zero_division)
+    scores = [
+        ndcg_at_k(ranked, gold, k=k, zero_division=zero_division)
+        for ranked, gold in zip(retrieved, relevant)
+    ]
+    return sum(scores) / len(scores)
+
+
+def _log2(value: float) -> float:
+    """log2 without importing math (keeps the module stdlib-light)."""
+    from math import log2
+
+    return log2(value)
