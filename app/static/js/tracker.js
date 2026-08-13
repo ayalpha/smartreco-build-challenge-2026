@@ -36,6 +36,9 @@
   /** @const {string} sessionStorage key holding the session id. */
   const SESSION_KEY = 'smartreco_session_id';
 
+  /** @const {string} Cookie used by server-side anonymous saved items. */
+  const SESSION_COOKIE = 'smartreco_session';
+
   /**
    * Buffered, non-blocking behavioural event tracker.
    */
@@ -45,6 +48,7 @@
       this.queue = [];
       /** @type {string} Stable id for this browsing session. */
       this.sessionId = this.getOrCreateSession();
+      this.syncSessionCookie();
       /** @type {number} Accumulated visible time on this page, in ms. */
       this.visibleMs = 0;
       /** @type {?number} Timestamp when the page last became visible. */
@@ -119,6 +123,16 @@
         return window.crypto.randomUUID();
       }
       return 's-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    }
+
+    /**
+     * Share the tracker session with server-rendered anonymous features.
+     * Without this cookie every visitor falls into the literal "anonymous"
+     * bucket, causing saved courses to leak between unrelated users.
+     */
+    syncSessionCookie() {
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `${SESSION_COOKIE}=${encodeURIComponent(this.sessionId)}; Path=/; SameSite=Lax${secure}`;
     }
 
     // -------------------------------------------------------------- queueing

@@ -227,6 +227,16 @@ class TestSavedItems:
         assert response.status_code == 200
         assert response.json()["count"] == 1
 
+    def test_tracker_shares_its_session_with_anonymous_saved_items(self) -> None:
+        from pathlib import Path
+
+        tracker = (
+            Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "tracker.js"
+        ).read_text(encoding="utf-8")
+
+        assert "smartreco_session" in tracker
+        assert "document.cookie" in tracker
+
     def test_saved_page_renders(
         self, client: TestClient, auth_headers: dict[str, str], products: list[Product]
     ) -> None:
