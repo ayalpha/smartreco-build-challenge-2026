@@ -157,6 +157,33 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Metadata filter: category (repeatable)",
     )
     parser.add_argument("--max-price", type=float, default=None)
+    parser.add_argument("--min-price", type=float, default=None)
+    parser.add_argument(
+        "--exclude-product-id",
+        action="append",
+        type=int,
+        dest="exclude_product_ids",
+        default=None,
+        help="Exclude product id from retrieval (repeatable)",
+    )
+    parser.add_argument(
+        "--write",
+        type=str,
+        default=None,
+        help="Write metrics to this path (fmt from --write-fmt)",
+    )
+    parser.add_argument(
+        "--write-fmt",
+        choices=("json", "csv", "table"),
+        default="json",
+        help="Format for --write (default json)",
+    )
+    parser.add_argument(
+        "--calibration-bins",
+        type=int,
+        default=None,
+        help="Bins for ECE on score-based classification",
+    )
     parser.add_argument(
         "--bootstrap",
         type=int,
@@ -301,6 +328,12 @@ def main(argv: list[str] | None = None) -> int:
         overrides["categories"] = tuple(args.categories)
     if args.max_price is not None:
         overrides["max_price"] = args.max_price
+    if args.min_price is not None:
+        overrides["min_price"] = args.min_price
+    if args.exclude_product_ids:
+        overrides["exclude_product_ids"] = tuple(args.exclude_product_ids)
+    if args.calibration_bins is not None:
+        overrides["calibration_bins"] = args.calibration_bins
     if args.random_baseline:
         overrides["random_baseline_trials"] = args.random_baseline
     if args.require_beat_random:
@@ -359,6 +392,11 @@ def main(argv: list[str] | None = None) -> int:
             metrics = run_retrieval_eval(db, params=params)
             passed = metrics.get("passed_gates", True)
 
+        if args.write:
+            from app.evals.report import write_metrics
+
+            write_metrics(metrics, args.write, fmt=args.write_fmt)
+
         if args.json:
             print(metrics_to_json(metrics))
         elif args.csv:
@@ -369,7 +407,6 @@ def main(argv: list[str] | None = None) -> int:
             print(metrics_to_csv(source))
         else:
             if args.suite:
-                title = "Eval suite"
                 # Print suite summary + retrieval report.
                 print(format_metrics_report(metrics.get("retrieval", {}), title="Retrieval"))
                 cls = metrics.get("classification_fixtures") or {}

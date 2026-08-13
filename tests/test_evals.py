@@ -42,12 +42,14 @@ from app.evals.metrics import (
     classification_metrics_bundle,
     confusion_counts,
     confusion_matrix_labels,
+    expected_calibration_error,
     fbeta_score,
     k_sweep_table,
     matthews_corrcoef,
     mcnemar_test,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
+    metric_formula_self_check,
     metrics_delta,
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
@@ -66,6 +68,7 @@ from app.evals.report import (
     metrics_to_csv,
     metrics_to_json,
     metrics_to_table,
+    write_metrics,
 )
 from app.evals.runner import (
     compare_retrieval_modes,
@@ -758,7 +761,7 @@ class TestExpandedDatasetFilters:
         assert a != c or len(a) < 2
 
     def test_golden_set_grew(self) -> None:
-        assert len(GOLDEN_RETRIEVAL_CASES) >= 14
+        assert len(GOLDEN_RETRIEVAL_CASES) >= 16
         assert len(GOLDEN_CLASSIFICATION_FIXTURES) >= 5
 
 
@@ -1507,3 +1510,113 @@ class TestRandomBaselineParamGridAndConfusion:
         for key in ("accuracy", "precision", "recall", "f1"):
             assert key in metrics
             assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+
+
+class TestCalibrationFormulaExportAndFilters:
+    def test_metric_formula_self_check_matches_classification(self) -> None:
+        # TP=2 FP=1 TN=1 FN=0
+        y_true = [1, 1, 0, 0]
+        y_pred = [1, 1, 1, 0]
+        report = classification_metrics(y_true, y_pred, average="binary")
+        formula = metric_formula_self_check(tp=2, fp=1, tn=1, fn=0)
+        assert formula["accuracy"] == pytest.approx(report.accuracy)
+        assert formula["precision"] == pytest.approx(report.precision)
+        assert formula["recall"] == pytest.approx(report.recall)
+        assert formula["f1"] == pytest.approx(report.f1)
+
+    @pytest.mark.parametrize(
+        "tp,fp,tn,fn,expected",
+        [
+            (1, 0, 1, 0, (1.0, 1.0, 1.0, 1.0)),
+            (0, 0, 2, 2, (0.5, 0.0, 0.0, 0.0)),
+            (3, 1, 0, 0, (0.75, 0.75, 1.0, 2 * 0.75 * 1 / (0.75 + 1))),
+        ],
+        ids=["perfect", "no-positives-pred", "no-negatives"],
+    )
+    def test_formula_table(
+        self,
+        tp: int,
+        fp: int,
+        tn: int,
+        fn: int,
+        expected: tuple[float, float, float, float],
+    ) -> None:
+        out = metric_formula_self_check(tp=tp, fp=fp, tn=tn, fn=fn)
+        acc, prec, rec, f1 = expected
+        assert out["accuracy"] == pytest.approx(acc)
+        assert out["precision"] == pytest.approx(prec)
+        assert out["recall"] == pytest.approx(rec)
+        assert out["f1"] == pytest.approx(f1)
+
+    def test_ece_perfect_and_poor(self) -> None:
+        # Perfect calibration: scores equal labels
+        perfect = expected_calibration_error([1, 1, 0, 0], [1.0, 1.0, 0.0, 0.0], n_bins=4)
+        assert perfect["ece"] == pytest.approx(0.0)
+        # Poor: always predict 0.9 confidence
+        poor = expected_calibration_error([1, 0, 1, 0], [0.9, 0.9, 0.9, 0.9], n_bins=5)
+        assert poor["ece"] > 0.2
+
+    def test_classification_emits_ece(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            y_pred=[],
+            scores=[0.95, 0.85, 0.15, 0.05],
+            params=EvalParams(
+                relevance_threshold=0.5,
+                include_calibration=True,
+                calibration_bins=5,
+                min_ece=0.5,
+            ),
+        )
+        assert "ece" in metrics
+        assert "calibration" in metrics
+        assert metrics["passed_gates"] is True
+
+    def test_write_metrics_json_and_csv(self, tmp_path: Any) -> None:
+        from pathlib import Path
+
+        metrics = {"accuracy": 0.9, "precision": 0.8, "recall": 0.7, "f1": 0.75}
+        json_path = write_metrics(metrics, str(tmp_path / "m.json"), fmt="json")
+        csv_path = write_metrics(metrics, str(tmp_path / "m.csv"), fmt="csv")
+        assert Path(json_path).read_text(encoding="utf-8")
+        assert "accuracy" in Path(csv_path).read_text(encoding="utf-8")
+
+    def test_max_price_filter(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=4,
+                ks=(4,),
+                max_price=50.0,
+                case_ids=("cheap-beginner-writing", "tech-writing"),
+                include_per_case=True,
+                retrieval_mode="hybrid",
+                min_hit_rate=0.0,
+            ),
+        )
+        assert metrics["filters"]["max_price"] == 50.0
+        cheap_ids = {p.id for p in products if float(p.price or 0) <= 50.0}
+        for row in metrics["per_case"]:
+            for pid in row["retrieved_ids"]:
+                assert pid in cheap_ids
+
+    def test_exclude_product_ids_filter(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        excluded = products[0].id
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=5,
+                ks=(5,),
+                exclude_product_ids=(excluded,),
+                split="train",
+                limit_cases=2,
+                include_per_case=True,
+                min_hit_rate=0.0,
+            ),
+        )
+        for row in metrics["per_case"]:
+            assert excluded not in row["retrieved_ids"]

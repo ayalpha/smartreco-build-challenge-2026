@@ -172,6 +172,22 @@ GOLDEN_RETRIEVAL_CASES: tuple[RetrievalCase, ...] = (
         notes="Near-copy of multi-agent course description.",
         tags=("agentic", "paraphrase"),
     ),
+    RetrievalCase(
+        id="cheap-beginner-writing",
+        query="beginner technical writing design docs under fifty dollars",
+        relevant_title_substrings=("Writing for Engineers",),
+        split="train",
+        notes="Price-sensitive career query; Writing course is $35 beginner.",
+        tags=("career", "price"),
+    ),
+    RetrievalCase(
+        id="advanced-ops",
+        query="advanced kubernetes resource limits autoscaling for app teams",
+        relevant_title_substrings=("Kubernetes",),
+        split="train",
+        notes="Advanced skill band + ops vocabulary.",
+        tags=("devops", "skill"),
+    ),
 )
 
 

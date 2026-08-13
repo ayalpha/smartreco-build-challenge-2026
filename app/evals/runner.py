@@ -28,6 +28,7 @@ from app.evals.metrics import (
     classification_metrics,
     classification_metrics_bundle,
     confusion_matrix_labels,
+    expected_calibration_error,
     k_sweep_table,
     matthews_corrcoef,
     mcnemar_test,
@@ -484,6 +485,15 @@ def run_classification_eval(
         metrics["pr_auc"] = precision_recall_auc(
             metrics["by_threshold"], zero_division=params.zero_division
         )
+
+    if scores is not None and params.include_calibration:
+        metrics["calibration"] = expected_calibration_error(
+            y_true,
+            scores,
+            n_bins=params.calibration_bins,
+            positive_label=params.positive_label,
+        )
+        metrics["ece"] = metrics["calibration"]["ece"]
 
     passed, failures = params.passes_gates(metrics)
     metrics["passed_gates"] = passed

@@ -99,6 +99,11 @@ class EvalParams:
     skill_levels: Optional[tuple[str, ...]] = None
     categories: Optional[tuple[str, ...]] = None
     max_price: Optional[float] = None
+    min_price: Optional[float] = None
+    exclude_product_ids: Optional[tuple[int, ...]] = None
+    calibration_bins: int = 10
+    include_calibration: bool = True
+    min_ece: Optional[float] = None  # gate: require ECE <= this (lower better)
     f_betas: tuple[float, ...] = (0.5, 2.0)
     compare_modes: Optional[tuple[str, ...]] = None
     #: Agent re-rank blend (matches app.agent.nodes._RERANK_*).
@@ -147,6 +152,12 @@ class EvalParams:
             )
         if self.max_price is not None and self.max_price < 0:
             raise ValueError(f"max_price must be >= 0, got {self.max_price}")
+        if self.min_price is not None and self.min_price < 0:
+            raise ValueError(f"min_price must be >= 0, got {self.min_price}")
+        if self.calibration_bins < 1:
+            raise ValueError(
+                f"calibration_bins must be >= 1, got {self.calibration_bins}"
+            )
         if self.judge_weight < 0 or self.retrieval_weight < 0:
             raise ValueError("judge_weight and retrieval_weight must be >= 0")
         if self.min_relevant < 1:
@@ -181,6 +192,7 @@ class EvalParams:
             "compare_modes",
             "skill_levels",
             "categories",
+            "exclude_product_ids",
         ):
             if data.get(key) is not None:
                 data[key] = list(data[key])
@@ -188,7 +200,13 @@ class EvalParams:
 
     def search_filters(self) -> Optional[Any]:
         """Build a :class:`~app.vector_store.qdrant_client.SearchFilters` if set."""
-        if not self.skill_levels and not self.categories and self.max_price is None:
+        if (
+            not self.skill_levels
+            and not self.categories
+            and self.max_price is None
+            and self.min_price is None
+            and not self.exclude_product_ids
+        ):
             return None
         from app.vector_store.qdrant_client import SearchFilters
 
@@ -196,6 +214,10 @@ class EvalParams:
             skill_levels=list(self.skill_levels) if self.skill_levels else None,
             categories=list(self.categories) if self.categories else None,
             max_price=self.max_price,
+            min_price=self.min_price,
+            exclude_product_ids=list(self.exclude_product_ids)
+            if self.exclude_product_ids
+            else None,
         )
 
     @classmethod
@@ -220,6 +242,7 @@ class EvalParams:
                 "compare_modes",
                 "skill_levels",
                 "categories",
+                "exclude_product_ids",
             } and isinstance(value, list):
                 kwargs[key] = tuple(value)
             else:
@@ -253,6 +276,18 @@ class EvalParams:
                 failures.append(f"{label}: missing (gate required >= {minimum})")
             elif float(value) < minimum:
                 failures.append(f"{label}: {float(value):.4f} < {minimum}")
+        # ECE is lower-is-better.
+        if self.min_ece is not None:
+            ece = _first_present(metrics, ("ece",))
+            if ece is None and isinstance(metrics.get("calibration"), dict):
+                try:
+                    ece = float(metrics["calibration"].get("ece"))  # type: ignore[arg-type]
+                except (TypeError, ValueError):
+                    ece = None
+            if ece is None:
+                failures.append(f"ece: missing (gate required <= {self.min_ece})")
+            elif float(ece) > self.min_ece:
+                failures.append(f"ece: {float(ece):.4f} > {self.min_ece}")
         return (not failures, failures)
 
 

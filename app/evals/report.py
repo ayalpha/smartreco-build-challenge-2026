@@ -54,6 +54,28 @@ def metrics_to_csv(metrics: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def write_metrics(
+    metrics: Mapping[str, Any],
+    path: str,
+    *,
+    fmt: str = "json",
+) -> str:
+    """Write metrics to ``path`` as json/csv/table; returns the path."""
+    from pathlib import Path
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "json":
+        target.write_text(metrics_to_json(metrics), encoding="utf-8")
+    elif fmt == "csv":
+        target.write_text(metrics_to_csv(metrics), encoding="utf-8")
+    elif fmt == "table":
+        target.write_text(format_metrics_report(metrics), encoding="utf-8")
+    else:
+        raise ValueError(f"fmt must be json|csv|table, got {fmt!r}")
+    return str(target)
+
+
 def metrics_to_table(
     metrics: Mapping[str, Any],
     *,

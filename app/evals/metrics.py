@@ -1198,6 +1198,95 @@ def confusion_matrix_labels(
     }
 
 
+def expected_calibration_error(
+    y_true: Sequence[Label],
+    scores: Sequence[float],
+    *,
+    n_bins: int = 10,
+    positive_label: Label = 1,
+) -> dict[str, float]:
+    """Binary expected calibration error (ECE) over equal-width score bins.
+
+    ECE = Σ_b (|B_b| / n) · |acc(B_b) − conf(B_b)|
+
+    where acc is the fraction of positives in the bin and conf is the mean score.
+    Lower is better; 0 means perfectly calibrated.
+    """
+    if len(y_true) != len(scores):
+        raise ValueError("y_true/scores length mismatch")
+    if n_bins < 1:
+        raise ValueError(f"n_bins must be >= 1, got {n_bins}")
+    if not y_true:
+        return {"ece": 0.0, "n_bins": float(n_bins), "n": 0.0}
+
+    n = len(y_true)
+    bin_totals = [0] * n_bins
+    bin_positives = [0] * n_bins
+    bin_score_sums = [0.0] * n_bins
+
+    for truth, score in zip(y_true, scores):
+        s = min(max(float(score), 0.0), 1.0)
+        # Put score=1.0 into the last bin.
+        idx = min(int(s * n_bins), n_bins - 1)
+        bin_totals[idx] += 1
+        bin_score_sums[idx] += s
+        if truth == positive_label:
+            bin_positives[idx] += 1
+
+    ece = 0.0
+    for total, pos, score_sum in zip(bin_totals, bin_positives, bin_score_sums):
+        if total == 0:
+            continue
+        acc = pos / total
+        conf = score_sum / total
+        ece += (total / n) * abs(acc - conf)
+
+    return {
+        "ece": ece,
+        "n_bins": float(n_bins),
+        "n": float(n),
+        "max_bin_gap": max(
+            (
+                abs((pos / total) - (score_sum / total))
+                for total, pos, score_sum in zip(
+                    bin_totals, bin_positives, bin_score_sums
+                )
+                if total > 0
+            ),
+            default=0.0,
+        ),
+    }
+
+
+def metric_formula_self_check(
+    *,
+    tp: int,
+    fp: int,
+    tn: int,
+    fn: int,
+    zero_division: float = _DEFAULT_ZERO,
+) -> dict[str, float]:
+    """Compute A/P/R/F1 from raw confusion counts (formula regression helper).
+
+    accuracy  = (TP+TN)/(TP+TN+FP+FN)
+    precision = TP/(TP+FP)
+    recall    = TP/(TP+FN)
+    f1        = 2PR/(P+R)
+    """
+    total = tp + fp + tn + fn
+    accuracy = _safe_div(tp + tn, total, zero_division)
+    precision = _safe_div(tp, tp + fp, zero_division)
+    recall = _safe_div(tp, tp + fn, zero_division)
+    f1 = _f1(precision, recall, zero_division)
+    return {
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "support": float(tp + fn),
+    }
+
+
 def _log2(value: float) -> float:
     """log2 without importing math (keeps the module stdlib-light)."""
     from math import log2
