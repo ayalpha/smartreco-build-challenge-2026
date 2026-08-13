@@ -156,6 +156,25 @@ class TestAuthentication:
         assert verify_password("wrong password", hashed) is False
 
 
+def test_application_import_does_not_depend_on_working_directory(tmp_path: Any) -> None:
+    """ASGI servers may be launched outside the repository root."""
+    import os
+
+    previous = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        from app.dependencies import get_templates
+        from app.main import create_app
+
+        application = create_app()
+        template = get_templates().get_template("index.html")
+    finally:
+        os.chdir(previous)
+
+    assert application.url_path_for("static", path="css/custom.css") == "/static/css/custom.css"
+    assert template.name == "index.html"
+
+
 # --------------------------------------------------------------------------- #
 # Public catalog                                                              #
 # --------------------------------------------------------------------------- #
