@@ -163,6 +163,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0,
         help="Bootstrap resamples for classification CI (classification-only path)",
     )
+    parser.add_argument(
+        "--preset",
+        choices=("default", "agent", "strict"),
+        default=None,
+        help="Start from a named EvalParams preset before applying flags",
+    )
+    parser.add_argument(
+        "--min-relevant",
+        type=int,
+        default=None,
+        help="Success@k requires this many golds in top-k (agent default 3)",
+    )
+    parser.add_argument("--min-success-at-k", type=float, default=None)
+    parser.add_argument("--judge-weight", type=float, default=None)
+    parser.add_argument("--retrieval-weight", type=float, default=None)
     parser.add_argument("--csv", action="store_true", help="Emit CSV instead of a table")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     parser.add_argument(
@@ -182,46 +197,79 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
     from app.database import SessionLocal, init_db
-    from app.evals.config import EvalParams
+    from app.evals.config import (
+        AGENT_ALIGNED_EVAL_PARAMS,
+        DEFAULT_EVAL_PARAMS,
+        EvalParams,
+        STRICT_EVAL_PARAMS,
+    )
     from app.evals.runner import compare_retrieval_modes, run_retrieval_eval
     from app.evals.report import format_metrics_report, metrics_to_json
 
     init_db()
-    params = EvalParams(
-        k=args.k,
-        ks=tuple(args.ks) if args.ks else None,
-        split=args.split,
-        retrieval_mode=args.mode,
-        case_ids=tuple(args.case_ids) if args.case_ids else None,
-        exclude_case_ids=tuple(args.exclude_case_ids) if args.exclude_case_ids else None,
-        tags=tuple(args.tags) if args.tags else None,
-        tag_any=tuple(args.tag_any) if args.tag_any else None,
-        limit_cases=args.limit_cases,
-        shuffle_cases=args.shuffle,
-        seed=args.seed,
-        relevance_threshold=args.threshold,
-        thresholds=tuple(args.thresholds) if args.thresholds else None,
-        min_hit_rate=args.min_hit_rate,
-        min_precision=args.min_precision,
-        min_recall=args.min_recall,
-        min_f1=args.min_f1,
-        min_accuracy=args.min_accuracy,
-        min_mrr=args.min_mrr,
-        min_ndcg=args.min_ndcg,
-        min_map=args.min_map,
-        use_catalog_accuracy=not args.no_catalog_accuracy,
-        include_ndcg=not args.no_ndcg,
-        include_map=not args.no_map,
-        f_betas=tuple(args.f_betas) if args.f_betas else (0.5, 2.0),
-        compare_modes=tuple(args.compare_modes) if args.compare_modes else None,
-        leave_one_out=args.leave_one_out,
-        skill_levels=tuple(args.skill_levels) if args.skill_levels else None,
-        categories=tuple(args.categories) if args.categories else None,
-        max_price=args.max_price,
-        n_bootstrap=args.bootstrap,
-        include_per_case=not args.no_per_case,
-        extra={"tag": args.tag} if args.tag else {},
-    )
+    preset_map = {
+        "default": DEFAULT_EVAL_PARAMS,
+        "agent": AGENT_ALIGNED_EVAL_PARAMS,
+        "strict": STRICT_EVAL_PARAMS,
+    }
+    base = preset_map[args.preset] if args.preset else EvalParams()
+    overrides: dict = {
+        "k": args.k,
+        "split": args.split,
+        "retrieval_mode": args.mode,
+        "shuffle_cases": args.shuffle,
+        "seed": args.seed,
+        "relevance_threshold": args.threshold,
+        "use_catalog_accuracy": not args.no_catalog_accuracy,
+        "include_ndcg": not args.no_ndcg,
+        "include_map": not args.no_map,
+        "leave_one_out": args.leave_one_out,
+        "n_bootstrap": args.bootstrap,
+        "include_per_case": not args.no_per_case,
+        "extra": {"tag": args.tag} if args.tag else {},
+    }
+    if args.ks is not None:
+        overrides["ks"] = tuple(args.ks)
+    if args.case_ids:
+        overrides["case_ids"] = tuple(args.case_ids)
+    if args.exclude_case_ids:
+        overrides["exclude_case_ids"] = tuple(args.exclude_case_ids)
+    if args.tags:
+        overrides["tags"] = tuple(args.tags)
+    if args.tag_any:
+        overrides["tag_any"] = tuple(args.tag_any)
+    if args.limit_cases is not None:
+        overrides["limit_cases"] = args.limit_cases
+    if args.thresholds is not None:
+        overrides["thresholds"] = tuple(args.thresholds)
+    for flag, key in (
+        (args.min_hit_rate, "min_hit_rate"),
+        (args.min_precision, "min_precision"),
+        (args.min_recall, "min_recall"),
+        (args.min_f1, "min_f1"),
+        (args.min_accuracy, "min_accuracy"),
+        (args.min_mrr, "min_mrr"),
+        (args.min_ndcg, "min_ndcg"),
+        (args.min_map, "min_map"),
+        (args.min_success_at_k, "min_success_at_k"),
+        (args.min_relevant, "min_relevant"),
+        (args.judge_weight, "judge_weight"),
+        (args.retrieval_weight, "retrieval_weight"),
+    ):
+        if flag is not None:
+            overrides[key] = flag
+    if args.f_betas:
+        overrides["f_betas"] = tuple(args.f_betas)
+    if args.compare_modes:
+        overrides["compare_modes"] = tuple(args.compare_modes)
+    if args.skill_levels:
+        overrides["skill_levels"] = tuple(args.skill_levels)
+    if args.categories:
+        overrides["categories"] = tuple(args.categories)
+    if args.max_price is not None:
+        overrides["max_price"] = args.max_price
+
+    params = base.with_updates(**overrides)
 
     with SessionLocal() as db:
         if args.seed_sample:

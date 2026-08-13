@@ -850,6 +850,71 @@ def matthews_corrcoef(
     return numerator / denominator
 
 
+def blend_rerank_scores(
+    judge_scores: Sequence[float],
+    retrieval_scores: Sequence[float],
+    *,
+    judge_weight: float = 0.65,
+    retrieval_weight: float = 0.35,
+) -> list[float]:
+    """Blend LLM judge scores with retrieval scores (agent ``_rerank`` formula).
+
+    ``rerank = judge_weight * judge + retrieval_weight * (fused / peak)``
+    with peak = max(fused) or 1.0. Weights should sum to 1.0 but are not forced.
+    """
+    if len(judge_scores) != len(retrieval_scores):
+        raise ValueError("judge_scores/retrieval_scores length mismatch")
+    if not judge_scores:
+        return []
+    peak = max(float(s) for s in retrieval_scores) or 1.0
+    return [
+        float(judge_weight) * float(j)
+        + float(retrieval_weight) * (float(r) / peak)
+        for j, r in zip(judge_scores, retrieval_scores)
+    ]
+
+
+def success_at_k(
+    retrieved: Sequence[Sequence[Label]],
+    relevant: Sequence[Iterable[Label]],
+    *,
+    k: int,
+    min_relevant: int = 3,
+) -> float:
+    """Fraction of queries with at least ``min_relevant`` golds in the top-k.
+
+    Mirrors the agent gate ``agent_min_relevant_products`` used after grading:
+    the graph only proceeds when enough candidates are relevant.
+    """
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+    if min_relevant < 1:
+        raise ValueError(f"min_relevant must be >= 1, got {min_relevant}")
+    if len(retrieved) != len(relevant):
+        raise ValueError("retrieved/relevant length mismatch")
+    if not retrieved:
+        return 0.0
+    hits = 0
+    for ranked, gold in zip(retrieved, relevant):
+        gold_set = set(gold)
+        count = sum(1 for doc_id in list(ranked)[:k] if doc_id in gold_set)
+        if count >= min_relevant:
+            hits += 1
+    return hits / len(retrieved)
+
+
+def rank_by_scores(
+    ids: Sequence[Label],
+    scores: Sequence[float],
+) -> list[Label]:
+    """Return ids sorted by score descending (stable for ties via original order)."""
+    if len(ids) != len(scores):
+        raise ValueError("ids/scores length mismatch")
+    indexed = list(enumerate(zip(ids, scores)))
+    indexed.sort(key=lambda item: (-float(item[1][1]), item[0]))
+    return [ids_scores[0] for _, ids_scores in indexed]
+
+
 def bootstrap_metric_ci(
     y_true: Sequence[Label],
     y_pred: Sequence[Label],

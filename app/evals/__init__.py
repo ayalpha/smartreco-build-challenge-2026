@@ -32,9 +32,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from app.evals.runner import run_retrieval_eval
 
 _EXPORTS: dict[str, str] = {
+    "AGENT_ALIGNED_EVAL_PARAMS": "app.evals.config",
     "ClassificationReport": "app.evals.metrics",
+    "DEFAULT_EVAL_PARAMS": "app.evals.config",
     "EvalParams": "app.evals.config",
     "RankingReport": "app.evals.metrics",
+    "STRICT_EVAL_PARAMS": "app.evals.config",
     "classification_metrics": "app.evals.metrics",
     "classification_metrics_bundle": "app.evals.metrics",
     "compare_retrieval_modes": "app.evals.runner",
@@ -50,7 +53,9 @@ _EXPORTS: dict[str, str] = {
     "ranking_metrics_at_k": "app.evals.metrics",
     "run_classification_eval": "app.evals.runner",
     "run_grader_threshold_eval": "app.evals.runner",
+    "run_rerank_eval": "app.evals.runner",
     "run_retrieval_eval": "app.evals.runner",
+    "success_at_k": "app.evals.metrics",
     "threshold_sweep_metrics": "app.evals.metrics",
 }
 

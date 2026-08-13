@@ -84,6 +84,8 @@ def metrics_to_table(
         "mrr",
         "ndcg_at_k",
         "map_at_k",
+        "success_at_k",
+        "mcc",
         "n_queries",
         "k",
         "passed_gates",

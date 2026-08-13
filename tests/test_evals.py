@@ -13,11 +13,17 @@ from typing import Any
 import pytest
 from sqlalchemy.orm import Session
 
-from app.evals.config import DEFAULT_EVAL_PARAMS, EvalParams
+from app.evals.config import (
+    AGENT_ALIGNED_EVAL_PARAMS,
+    DEFAULT_EVAL_PARAMS,
+    EvalParams,
+    STRICT_EVAL_PARAMS,
+)
 from app.evals.datasets import (
     GOLDEN_CLASSIFICATION_FIXTURES,
     GOLDEN_GRADER_SCORE_FIXTURES,
     GOLDEN_MULTICLASS_FIXTURES,
+    GOLDEN_RERANK_FIXTURES,
     GOLDEN_RETRIEVAL_CASES,
     RetrievalCase,
     filter_cases,
@@ -27,6 +33,7 @@ from app.evals.metrics import (
     average_precision_at_k,
     balanced_accuracy_from_confusion,
     best_threshold_by_metric,
+    blend_rerank_scores,
     bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
@@ -39,9 +46,11 @@ from app.evals.metrics import (
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
     precision_recall_auc,
+    rank_by_scores,
     ranking_metrics_at_k,
     scores_to_labels,
     specificity_from_confusion,
+    success_at_k,
     summarize_numeric_fields,
     threshold_sweep_metrics,
 )
@@ -55,6 +64,7 @@ from app.evals.runner import (
     compare_retrieval_modes,
     run_classification_eval,
     run_grader_threshold_eval,
+    run_rerank_eval,
     run_retrieval_eval,
 )
 from app.models.product import Product
@@ -1177,3 +1187,81 @@ class TestLeaveOneOutAndMetadataFilters:
         report = classification_metrics(labels, preds, average="binary")
         for value in (report.accuracy, report.precision, report.recall, report.f1):
             assert 0.0 <= value <= 1.0 + 1e-9
+
+
+class TestSuccessAtKAndRerankBlend:
+    def test_success_at_k_agent_gate(self) -> None:
+        # Need 2 relevants in top-3 for success; q1 has 2, q2 has 1
+        rate = success_at_k(
+            [[1, 2, 9], [3, 8, 7]],
+            [{1, 2, 4}, {3, 5}],
+            k=3,
+            min_relevant=2,
+        )
+        assert rate == pytest.approx(0.5)
+
+    def test_blend_matches_agent_weights(self) -> None:
+        # peak retrieval = 1.0; blend = 0.65*j + 0.35*(r/peak)
+        blended = blend_rerank_scores([1.0, 0.0], [0.5, 1.0])
+        assert blended[0] == pytest.approx(0.65 * 1.0 + 0.35 * 0.5)
+        assert blended[1] == pytest.approx(0.65 * 0.0 + 0.35 * 1.0)
+
+    def test_rank_by_scores_descending(self) -> None:
+        assert rank_by_scores([10, 20, 30], [0.1, 0.9, 0.5]) == [20, 30, 10]
+
+    @pytest.mark.parametrize(
+        "fixture",
+        list(GOLDEN_RERANK_FIXTURES),
+        ids=[f["id"] for f in GOLDEN_RERANK_FIXTURES],
+    )
+    def test_rerank_golden_fixtures(self, fixture: dict[str, Any]) -> None:
+        metrics = run_rerank_eval(
+            fixture["candidates"],
+            params=EvalParams(
+                k=fixture["k"],
+                judge_weight=0.65,
+                retrieval_weight=0.35,
+                relevance_threshold=0.35,
+                min_relevant=1,
+            ),
+        )
+        assert metrics["task"] == "rerank"
+        for key, expected in fixture["expected_blend"].items():
+            assert metrics["orderings"]["blend"][key] == pytest.approx(expected), (
+                f"{fixture['id']}.blend.{key}"
+            )
+        if "expected_retrieval" in fixture:
+            for key, expected in fixture["expected_retrieval"].items():
+                assert metrics["orderings"]["retrieval"][key] == pytest.approx(
+                    expected
+                ), f"{fixture['id']}.retrieval.{key}"
+        # Top-level accuracy/precision/recall/f1 from thresholded blend scores
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+
+    def test_retrieval_eval_exposes_success_at_k(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(3,),
+                split="train",
+                min_relevant=1,
+                include_per_case=False,
+                limit_cases=4,
+            ),
+        )
+        assert "success_at_k" in metrics
+        assert 0.0 <= metrics["success_at_k"] <= 1.0
+
+    def test_presets_exist_and_are_agent_aligned(self) -> None:
+        assert AGENT_ALIGNED_EVAL_PARAMS.relevance_threshold == 0.35
+        assert AGENT_ALIGNED_EVAL_PARAMS.judge_weight == 0.65
+        assert AGENT_ALIGNED_EVAL_PARAMS.retrieval_weight == 0.35
+        assert AGENT_ALIGNED_EVAL_PARAMS.min_relevant == 3
+        assert DEFAULT_EVAL_PARAMS.k == 3
+        assert STRICT_EVAL_PARAMS.min_f1 == 0.3
+        assert STRICT_EVAL_PARAMS.min_success_at_k == 0.2

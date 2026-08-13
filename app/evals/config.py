@@ -101,6 +101,12 @@ class EvalParams:
     max_price: Optional[float] = None
     f_betas: tuple[float, ...] = (0.5, 2.0)
     compare_modes: Optional[tuple[str, ...]] = None
+    #: Agent re-rank blend (matches app.agent.nodes._RERANK_*).
+    judge_weight: float = 0.65
+    retrieval_weight: float = 0.35
+    #: Agent gate: need this many relevants in top-k (agent_min_relevant_products).
+    min_relevant: int = 3
+    min_success_at_k: Optional[float] = None
     zero_division: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -138,6 +144,10 @@ class EvalParams:
             )
         if self.max_price is not None and self.max_price < 0:
             raise ValueError(f"max_price must be >= 0, got {self.max_price}")
+        if self.judge_weight < 0 or self.retrieval_weight < 0:
+            raise ValueError("judge_weight and retrieval_weight must be >= 0")
+        if self.min_relevant < 1:
+            raise ValueError(f"min_relevant must be >= 1, got {self.min_relevant}")
 
     def effective_ks(self) -> tuple[int, ...]:
         """Return the cutoffs to evaluate (``ks`` if set, else ``(k,)``)."""
@@ -226,6 +236,7 @@ class EvalParams:
             ("ndcg", self.min_ndcg, ("ndcg_at_k", "ndcg")),
             ("map", self.min_map, ("map_at_k", "map")),
             ("pr_auc", self.min_pr_auc, ("pr_auc",)),
+            ("success_at_k", self.min_success_at_k, ("success_at_k",)),
         )
         for label, minimum, keys in checks:
             if minimum is None:
@@ -262,5 +273,35 @@ DEFAULT_EVAL_PARAMS = EvalParams(
     ks=(1, 3, 5),
     average="binary",
     min_hit_rate=0.5,
+    include_per_case=True,
+)
+
+#: Mirrors production agent knobs (heuristic threshold, re-rank blend, min relevant).
+AGENT_ALIGNED_EVAL_PARAMS = EvalParams(
+    k=3,
+    ks=(1, 3, 6),
+    relevance_threshold=0.35,
+    thresholds=(0.25, 0.35, 0.5, 0.65, 0.8),
+    judge_weight=0.65,
+    retrieval_weight=0.35,
+    min_relevant=3,
+    min_hit_rate=0.4,
+    include_per_case=True,
+    include_ndcg=True,
+    include_map=True,
+    leave_one_out=False,
+)
+
+#: Stricter offline gate set for regression dashboards.
+STRICT_EVAL_PARAMS = EvalParams(
+    k=3,
+    ks=(1, 3, 5),
+    min_accuracy=0.5,
+    min_precision=0.3,
+    min_recall=0.3,
+    min_f1=0.3,
+    min_hit_rate=0.5,
+    min_mrr=0.3,
+    min_success_at_k=0.2,
     include_per_case=True,
 )

@@ -404,6 +404,82 @@ GOLDEN_GRADER_SCORE_FIXTURES: tuple[dict[str, Any], ...] = (
 )
 
 
+#: Candidates for re-rank blend evals (judge + fused retrieval scores).
+GOLDEN_RERANK_FIXTURES: tuple[dict[str, Any], ...] = (
+    {
+        "id": "blend-promotes-relevant",
+        "candidates": (
+            {
+                "id": 1,
+                "relevance_score": 0.9,
+                "fused_score": 0.02,
+                "relevant": True,
+            },
+            {
+                "id": 2,
+                "relevance_score": 0.2,
+                "fused_score": 0.10,
+                "relevant": False,
+            },
+            {
+                "id": 3,
+                "relevance_score": 0.8,
+                "fused_score": 0.05,
+                "relevant": True,
+            },
+            {
+                "id": 4,
+                "relevance_score": 0.1,
+                "fused_score": 0.08,
+                "relevant": False,
+            },
+        ),
+        "k": 2,
+        # Blend should rank the two relevants first at k=2 → P=R=F1=1, hit=1
+        "expected_blend": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "f1_at_k": 1.0,
+            "hit_at_k": 1.0,
+        },
+    },
+    {
+        "id": "retrieval-only-misleading",
+        "candidates": (
+            {
+                "id": 10,
+                "relevance_score": 0.15,
+                "fused_score": 0.9,
+                "relevant": False,
+            },
+            {
+                "id": 11,
+                "relevance_score": 0.95,
+                "fused_score": 0.1,
+                "relevant": True,
+            },
+            {
+                "id": 12,
+                "relevance_score": 0.05,
+                "fused_score": 0.5,
+                "relevant": False,
+            },
+        ),
+        "k": 1,
+        # Pure retrieval puts 10 first (miss); blend should prefer 11 (hit).
+        "expected_blend": {
+            "hit_at_k": 1.0,
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+        },
+        "expected_retrieval": {
+            "hit_at_k": 0.0,
+            "precision_at_k": 0.0,
+        },
+    },
+)
+
+
 #: Multi-class fixtures: expected keys use ``accuracy`` plus micro/macro F1.
 GOLDEN_MULTICLASS_FIXTURES: tuple[dict[str, Any], ...] = (
     {

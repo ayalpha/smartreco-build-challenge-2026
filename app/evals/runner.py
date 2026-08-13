@@ -8,7 +8,7 @@ single metrics dict suitable for tests, JSON dumps, or stdout tables.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from app.evals.datasets import (
 )
 from app.evals.metrics import (
     best_threshold_by_metric,
+    blend_rerank_scores,
     bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
@@ -32,8 +33,10 @@ from app.evals.metrics import (
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
     precision_recall_auc,
+    rank_by_scores,
     ranking_metrics_at_k,
     scores_to_labels,
+    success_at_k,
     summarize_numeric_fields,
     threshold_sweep_metrics,
 )
@@ -232,6 +235,14 @@ def run_retrieval_eval(
             catalog_size=ranking_catalog_size,
             zero_division=params.zero_division,
         )
+
+    metrics["success_at_k"] = success_at_k(
+        ranked_lists,
+        gold_lists,
+        k=params.k,
+        min_relevant=params.min_relevant,
+    )
+    metrics["min_relevant"] = params.min_relevant
 
     if active_filters is not None:
         metrics["filters"] = active_filters.describe()
@@ -468,6 +479,146 @@ def run_grader_threshold_eval(
         scores=scores,
         params=params,
     )
+
+
+def run_rerank_eval(
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    params: Optional[EvalParams] = None,
+    id_key: str = "id",
+    judge_key: str = "relevance_score",
+    retrieval_key: str = "fused_score",
+    label_key: str = "relevant",
+) -> dict[str, Any]:
+    """Evaluate agent-style re-rank blend vs pure judge / pure retrieval order.
+
+    Each candidate mapping needs ``id``, judge score, retrieval score, and a
+    binary relevance label. Returns ranking metrics for three orderings:
+
+    * ``judge`` — sort by judge score only
+    * ``retrieval`` — sort by fused retrieval score only
+    * ``blend`` — 65/35 blend (configurable via ``params.judge_weight``)
+
+    Plus classification accuracy/precision/recall/F1 when blend scores are
+    thresholded with ``params.relevance_threshold``.
+    """
+    params = params or EvalParams(
+        k=3,
+        relevance_threshold=0.35,
+        judge_weight=0.65,
+        retrieval_weight=0.35,
+        min_relevant=3,
+        thresholds=(0.25, 0.35, 0.5, 0.65),
+    )
+    if not candidates:
+        return {
+            "task": "rerank",
+            "params": params.to_dict(),
+            "n_candidates": 0,
+            "passed_gates": True,
+            "gate_failures": [],
+        }
+
+    ids = [item[id_key] for item in candidates]
+    judge = [float(item.get(judge_key, 0.0)) for item in candidates]
+    retrieval = [float(item.get(retrieval_key, 0.0)) for item in candidates]
+    relevant_ids = [
+        item[id_key] for item in candidates if bool(item.get(label_key))
+    ]
+    blend = blend_rerank_scores(
+        judge,
+        retrieval,
+        judge_weight=params.judge_weight,
+        retrieval_weight=params.retrieval_weight,
+    )
+
+    orderings = {
+        "judge": rank_by_scores(ids, judge),
+        "retrieval": rank_by_scores(ids, retrieval),
+        "blend": rank_by_scores(ids, blend),
+    }
+
+    by_order: dict[str, Any] = {}
+    for name, ranked in orderings.items():
+        report = ranking_metrics_at_k(
+            [ranked],
+            [relevant_ids],
+            k=params.k,
+            catalog_size=len(ids),
+            zero_division=params.zero_division,
+        )
+        block = report.to_dict()
+        block["success_at_k"] = success_at_k(
+            [ranked],
+            [relevant_ids],
+            k=params.k,
+            min_relevant=min(params.min_relevant, max(1, len(relevant_ids))),
+        )
+        by_order[name] = block
+
+    # Threshold blend scores as a binary grader.
+    y_true = [1 if bool(item.get(label_key)) else 0 for item in candidates]
+    cls_metrics = run_classification_eval(
+        y_true,
+        y_pred=[],
+        scores=blend,
+        params=params.with_updates(
+            average="binary",
+            n_bootstrap=params.n_bootstrap,
+        ),
+    )
+
+    primary = by_order["blend"]
+    metrics: dict[str, Any] = {
+        "task": "rerank",
+        "params": params.to_dict(),
+        "n_candidates": len(candidates),
+        "n_relevant": len(relevant_ids),
+        "orderings": by_order,
+        "blend_vs_judge": metrics_delta(by_order["judge"], by_order["blend"]),
+        "blend_vs_retrieval": metrics_delta(
+            by_order["retrieval"], by_order["blend"]
+        ),
+        **{
+            key: primary[key]
+            for key in (
+                "precision_at_k",
+                "recall_at_k",
+                "f1_at_k",
+                "hit_at_k",
+                "accuracy_at_k",
+                "mrr",
+                "success_at_k",
+            )
+            if key in primary
+        },
+        "accuracy": cls_metrics.get("accuracy"),
+        "precision": cls_metrics.get("precision"),
+        "recall": cls_metrics.get("recall"),
+        "f1": cls_metrics.get("f1"),
+        "mcc": cls_metrics.get("mcc"),
+        "classification": {
+            key: cls_metrics[key]
+            for key in (
+                "accuracy",
+                "precision",
+                "recall",
+                "f1",
+                "mcc",
+                "by_threshold",
+                "best_threshold_by_f1",
+                "pr_auc",
+                "bundle",
+            )
+            if key in cls_metrics
+        },
+        "blend_scores": blend,
+        "order_blend": orderings["blend"],
+    }
+    passed, failures = params.passes_gates(metrics)
+    metrics["passed_gates"] = passed
+    metrics["gate_failures"] = failures
+    return metrics
 
 
 def report_retrieval_eval(
