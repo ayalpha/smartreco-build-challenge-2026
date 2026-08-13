@@ -11,6 +11,49 @@ def metrics_to_json(metrics: Mapping[str, Any], *, indent: int = 2) -> str:
     return json.dumps(metrics, indent=indent, sort_keys=True, default=str)
 
 
+def metrics_to_csv_rows(
+    metrics: Mapping[str, Any],
+    *,
+    keys: Optional[Sequence[str]] = None,
+) -> list[tuple[str, str]]:
+    """Flatten scalar metrics to ``(name, value)`` rows for CSV export."""
+    preferred = keys or (
+        "task",
+        "accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "mcc",
+        "precision_at_k",
+        "recall_at_k",
+        "f1_at_k",
+        "hit_at_k",
+        "mrr",
+        "ndcg_at_k",
+        "map_at_k",
+        "pr_auc",
+        "k",
+        "n_cases",
+        "n_samples",
+        "passed_gates",
+    )
+    rows: list[tuple[str, str]] = []
+    for key in preferred:
+        if key in metrics and not isinstance(metrics[key], (dict, list)):
+            rows.append((key, _format_value(metrics[key], 6)))
+    return rows
+
+
+def metrics_to_csv(metrics: Mapping[str, Any]) -> str:
+    """Two-column CSV (metric,value) for scalar fields."""
+    lines = ["metric,value"]
+    for name, value in metrics_to_csv_rows(metrics):
+        # Escape commas in values (unlikely for scalars).
+        safe = value.replace(",", ";")
+        lines.append(f"{name},{safe}")
+    return "\n".join(lines) + "\n"
+
+
 def metrics_to_table(
     metrics: Mapping[str, Any],
     *,

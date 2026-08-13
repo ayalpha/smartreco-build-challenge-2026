@@ -22,8 +22,10 @@ from app.evals.datasets import (
 )
 from app.evals.metrics import (
     best_threshold_by_metric,
+    bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
+    matthews_corrcoef,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
     metrics_delta,
@@ -104,13 +106,14 @@ def run_retrieval_eval(
 
     max_k = max(params.effective_ks())
     retrieve = retriever or _default_retriever(params.retrieval_mode)
+    active_filters = filters if filters is not None else params.search_filters()
 
     ranked_lists: list[list[int]] = []
     gold_lists: list[list[int]] = []
     per_case: list[dict[str, Any]] = []
 
     for case in resolved:
-        ranked = retrieve(db, case["query"], max_k, filters)
+        ranked = retrieve(db, case["query"], max_k, active_filters)
         gold = list(case["relevant_ids"])
         ranked_lists.append(ranked)
         gold_lists.append(gold)
@@ -221,10 +224,58 @@ def run_retrieval_eval(
         if params.include_per_case_summary:
             metrics["per_case_summary"] = summarize_numeric_fields(per_case)
 
+    if params.leave_one_out and len(resolved) >= 2:
+        metrics["leave_one_out"] = _leave_one_out_ranking(
+            ranked_lists,
+            gold_lists,
+            k=params.k,
+            catalog_size=ranking_catalog_size,
+            zero_division=params.zero_division,
+        )
+
+    if active_filters is not None:
+        metrics["filters"] = active_filters.describe()
+
     passed, failures = params.passes_gates(metrics)
     metrics["passed_gates"] = passed
     metrics["gate_failures"] = failures
     return metrics
+
+
+def _leave_one_out_ranking(
+    ranked_lists: Sequence[Sequence[int]],
+    gold_lists: Sequence[Sequence[int]],
+    *,
+    k: int,
+    catalog_size: Optional[int],
+    zero_division: float,
+) -> dict[str, Any]:
+    """Recompute primary ranking metrics leaving each query out once."""
+    n = len(ranked_lists)
+    folds: list[dict[str, Any]] = []
+    for idx in range(n):
+        retained_r = [r for i, r in enumerate(ranked_lists) if i != idx]
+        retained_g = [g for i, g in enumerate(gold_lists) if i != idx]
+        report = ranking_metrics_at_k(
+            retained_r,
+            retained_g,
+            k=k,
+            catalog_size=catalog_size,
+            zero_division=zero_division,
+        )
+        folds.append(report.to_dict())
+    summary = summarize_numeric_fields(
+        folds,
+        keys=(
+            "precision_at_k",
+            "recall_at_k",
+            "f1_at_k",
+            "hit_at_k",
+            "accuracy_at_k",
+            "mrr",
+        ),
+    )
+    return {"n_folds": n, "summary": summary, "folds": folds}
 
 
 def compare_retrieval_modes(
@@ -343,6 +394,27 @@ def run_classification_eval(
         if key in metrics["bundle"]:
             metrics[key] = metrics["bundle"][key]
 
+    metrics["mcc"] = matthews_corrcoef(
+        y_true,
+        predictions,
+        positive_label=params.positive_label,
+        zero_division=params.zero_division,
+    )
+
+    if params.n_bootstrap > 0:
+        metrics["bootstrap"] = {}
+        for metric_name in ("accuracy", "precision", "recall", "f1"):
+            metrics["bootstrap"][metric_name] = bootstrap_metric_ci(
+                y_true,
+                predictions,
+                metric=metric_name,
+                n_bootstrap=params.n_bootstrap,
+                seed=params.seed,
+                confidence=params.bootstrap_confidence,
+                positive_label=params.positive_label,
+                zero_division=params.zero_division,
+            )
+
     sweep_thresholds = params.thresholds
     if scores is not None and sweep_thresholds:
         metrics["by_threshold"] = threshold_sweep_metrics(
@@ -364,6 +436,38 @@ def run_classification_eval(
     metrics["passed_gates"] = passed
     metrics["gate_failures"] = failures
     return metrics
+
+
+def run_grader_threshold_eval(
+    scored_items: Sequence[Mapping[str, Any]],
+    *,
+    params: Optional[EvalParams] = None,
+    score_key: str = "relevance_score",
+    label_key: str = "relevant",
+) -> dict[str, Any]:
+    """Evaluate binary relevance labels vs continuous grader scores.
+
+    Designed for LLM-as-judge / heuristic grader outputs:
+    each item is ``{score_key: float, label_key: bool|0/1}``.
+
+    Uses ``params.relevance_threshold`` (default 0.5; agent heuristic uses 0.35).
+    """
+    params = params or EvalParams(
+        relevance_threshold=0.35,  # matches app.agent.nodes._HEURISTIC_RELEVANCE_THRESHOLD
+        thresholds=(0.25, 0.35, 0.5, 0.65, 0.8),
+        n_bootstrap=50,
+        seed=0,
+    )
+    y_true = [
+        1 if bool(item.get(label_key)) else 0 for item in scored_items
+    ]
+    scores = [float(item.get(score_key, 0.0)) for item in scored_items]
+    return run_classification_eval(
+        y_true,
+        y_pred=[],
+        scores=scores,
+        params=params,
+    )
 
 
 def report_retrieval_eval(

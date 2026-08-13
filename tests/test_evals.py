@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.evals.config import DEFAULT_EVAL_PARAMS, EvalParams
 from app.evals.datasets import (
     GOLDEN_CLASSIFICATION_FIXTURES,
+    GOLDEN_GRADER_SCORE_FIXTURES,
     GOLDEN_MULTICLASS_FIXTURES,
     GOLDEN_RETRIEVAL_CASES,
     RetrievalCase,
@@ -26,10 +27,12 @@ from app.evals.metrics import (
     average_precision_at_k,
     balanced_accuracy_from_confusion,
     best_threshold_by_metric,
+    bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
     confusion_counts,
     fbeta_score,
+    matthews_corrcoef,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
     metrics_delta,
@@ -42,10 +45,16 @@ from app.evals.metrics import (
     summarize_numeric_fields,
     threshold_sweep_metrics,
 )
-from app.evals.report import format_metrics_report, metrics_to_json, metrics_to_table
+from app.evals.report import (
+    format_metrics_report,
+    metrics_to_csv,
+    metrics_to_json,
+    metrics_to_table,
+)
 from app.evals.runner import (
     compare_retrieval_modes,
     run_classification_eval,
+    run_grader_threshold_eval,
     run_retrieval_eval,
 )
 from app.models.product import Product
@@ -1027,3 +1036,144 @@ class TestModeCompareAndPerCaseSummary:
         text = format_metrics_report(metrics, title="Class report")
         assert "Metrics by threshold" in text
         assert "F1=" in text
+
+
+class TestMatthewsBootstrapAndCsv:
+    def test_mcc_perfect_and_chance(self) -> None:
+        assert matthews_corrcoef([1, 1, 0, 0], [1, 1, 0, 0]) == pytest.approx(1.0)
+        # balanced errors → MCC = 0
+        assert matthews_corrcoef([1, 1, 0, 0], [1, 0, 1, 0]) == pytest.approx(0.0)
+
+    def test_bootstrap_ci_bounds(self) -> None:
+        ci = bootstrap_metric_ci(
+            [1, 1, 0, 0, 1, 0],
+            [1, 0, 0, 0, 1, 1],
+            metric="f1",
+            n_bootstrap=40,
+            seed=1,
+            confidence=0.9,
+        )
+        assert ci["low"] <= ci["mean"] <= ci["high"]
+        assert ci["n_bootstrap"] == 40.0
+
+    def test_classification_eval_emits_mcc_and_bootstrap(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            [1, 0, 0, 0],
+            params=EvalParams(n_bootstrap=30, seed=2, bootstrap_confidence=0.9),
+        )
+        assert "mcc" in metrics
+        assert -1.0 <= metrics["mcc"] <= 1.0
+        assert "bootstrap" in metrics
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics["bootstrap"]
+            assert "low" in metrics["bootstrap"][key]
+
+    def test_metrics_to_csv_has_header_and_core_rows(self) -> None:
+        csv_text = metrics_to_csv(
+            {
+                "task": "classification",
+                "accuracy": 0.75,
+                "precision": 0.5,
+                "recall": 1.0,
+                "f1": 2.0 / 3.0,
+                "mcc": 0.5,
+            }
+        )
+        assert csv_text.startswith("metric,value")
+        assert "accuracy,0.750000" in csv_text
+        assert "precision," in csv_text
+
+
+class TestGraderThresholdFixtures:
+    """Accuracy/precision/recall/F1 for score→label grader path."""
+
+    @pytest.mark.parametrize(
+        "fixture",
+        list(GOLDEN_GRADER_SCORE_FIXTURES),
+        ids=[f["id"] for f in GOLDEN_GRADER_SCORE_FIXTURES],
+    )
+    def test_grader_fixture(self, fixture: dict[str, Any]) -> None:
+        metrics = run_grader_threshold_eval(
+            fixture["items"],
+            params=EvalParams(
+                relevance_threshold=fixture["threshold"],
+                thresholds=(0.25, 0.35, 0.5, 0.65),
+                n_bootstrap=0,
+            ),
+        )
+        for key, expected in fixture["expected"].items():
+            assert metrics[key] == pytest.approx(expected), (
+                f"{fixture['id']}.{key}: {metrics[key]} != {expected}"
+            )
+        assert "by_threshold" in metrics
+        assert "best_threshold_by_f1" in metrics
+
+
+class TestLeaveOneOutAndMetadataFilters:
+    def test_leave_one_out_summary(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=2,
+                ks=(2,),
+                split="train",
+                leave_one_out=True,
+                include_per_case=False,
+                limit_cases=5,
+            ),
+        )
+        assert "leave_one_out" in metrics
+        loo = metrics["leave_one_out"]
+        assert loo["n_folds"] == metrics["n_cases"]
+        assert "precision_at_k" in loo["summary"]
+        assert loo["summary"]["precision_at_k"]["n"] == float(metrics["n_cases"])
+
+    def test_skill_level_filter_param(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(3,),
+                skill_levels=("advanced",),
+                case_ids=("multi-agent", "kubernetes"),
+                include_per_case=True,
+                retrieval_mode="hybrid",
+            ),
+        )
+        assert metrics["filters"]["skill_levels"] == ["advanced"]
+        # All retrieved products should be advanced when filters stick.
+        advanced_ids = {
+            p.id for p in products if (p.skill_level or "").lower() == "advanced"
+        }
+        for row in metrics["per_case"]:
+            for pid in row["retrieved_ids"]:
+                assert pid in advanced_ids
+
+    @pytest.mark.parametrize(
+        "k,threshold",
+        [(1, 0.35), (3, 0.5), (5, 0.65)],
+        ids=["k1-t35", "k3-t50", "k5-t65"],
+    )
+    def test_param_matrix_k_and_grader_threshold(
+        self, k: int, threshold: float
+    ) -> None:
+        """Joint parameter surface: ranking k + grader threshold both accepted."""
+        ranking = ranking_metrics_at_k(
+            [[1, 2, 3, 4, 5]],
+            [{1, 2}],
+            k=k,
+        )
+        assert ranking.k == k
+        assert 0.0 <= ranking.precision_at_k <= 1.0
+
+        scores = [0.9, 0.4, 0.2, 0.1]
+        labels = [1, 1, 0, 0]
+        preds = scores_to_labels(scores, threshold=threshold)
+        report = classification_metrics(labels, preds, average="binary")
+        for value in (report.accuracy, report.precision, report.recall, report.f1):
+            assert 0.0 <= value <= 1.0 + 1e-9

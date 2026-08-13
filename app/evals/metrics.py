@@ -825,6 +825,86 @@ def summarize_numeric_fields(
     return summary
 
 
+def matthews_corrcoef(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Matthews correlation coefficient (binary).
+
+    MCC = (TP·TN − FP·FN) / sqrt((TP+FP)(TP+FN)(TN+FP)(TN+FN))
+
+    Ranges [-1, 1]; 0 is chance-level. More informative than accuracy under
+    severe class imbalance.
+    """
+    counts = confusion_counts(y_true, y_pred, positive_label=positive_label)
+    tp, fp, tn, fn = counts.tp, counts.fp, counts.tn, counts.fn
+    numerator = tp * tn - fp * fn
+    denominator = (
+        (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)
+    ) ** 0.5
+    if denominator == 0:
+        return float(zero_division)
+    return numerator / denominator
+
+
+def bootstrap_metric_ci(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    metric: str = "f1",
+    n_bootstrap: int = 200,
+    seed: int = 0,
+    confidence: float = 0.95,
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> dict[str, float]:
+    """Bootstrap CI for a binary classification metric.
+
+    ``metric`` is one of ``accuracy``, ``precision``, ``recall``, ``f1``.
+    Returns mean, low, high percentiles for the requested confidence level.
+    """
+    import random
+
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true/y_pred length mismatch")
+    if not y_true:
+        z = float(zero_division)
+        return {"mean": z, "low": z, "high": z, "n_bootstrap": 0.0}
+    if n_bootstrap < 1:
+        raise ValueError(f"n_bootstrap must be >= 1, got {n_bootstrap}")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError(f"confidence must be in (0,1), got {confidence}")
+
+    rng = random.Random(seed)
+    n = len(y_true)
+    pairs = list(zip(y_true, y_pred))
+    samples: list[float] = []
+
+    for _ in range(n_bootstrap):
+        draw = [pairs[rng.randrange(n)] for _ in range(n)]
+        yt = [t for t, _ in draw]
+        yp = [p for _, p in draw]
+        report = classification_metrics(
+            yt, yp, average="binary", positive_label=positive_label, zero_division=zero_division
+        )
+        samples.append(float(getattr(report, metric)))
+
+    samples.sort()
+    alpha = 1.0 - confidence
+    low_idx = int(alpha / 2.0 * (len(samples) - 1))
+    high_idx = int((1.0 - alpha / 2.0) * (len(samples) - 1))
+    return {
+        "mean": sum(samples) / len(samples),
+        "low": samples[low_idx],
+        "high": samples[high_idx],
+        "n_bootstrap": float(n_bootstrap),
+        "confidence": confidence,
+    }
+
+
 def _log2(value: float) -> float:
     """log2 without importing math (keeps the module stdlib-light)."""
     from math import log2

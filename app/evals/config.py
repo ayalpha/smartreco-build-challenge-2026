@@ -55,6 +55,11 @@ class EvalParams:
         min_ndcg / min_map: Optional ranking quality gates.
         min_pr_auc: Optional gate on precision–recall AUC (score-based evals).
         compare_modes: When non-empty, CLI/harness can run multi-mode compare.
+        leave_one_out: When True, also report leave-one-case-out metric means.
+        n_bootstrap: Bootstrap resamples for classification CI (0 disables).
+        bootstrap_confidence: CI level for bootstrap (e.g. 0.95).
+        skill_levels / categories / max_price: Optional retrieval metadata filters
+            applied during hybrid search (mirrors agent SearchFilters).
         zero_division: Value used when a metric denominator is zero
             (sklearn-compatible convention; default 0.0).
     """
@@ -88,6 +93,12 @@ class EvalParams:
     include_per_case_summary: bool = True
     include_ndcg: bool = True
     include_map: bool = True
+    leave_one_out: bool = False
+    n_bootstrap: int = 0
+    bootstrap_confidence: float = 0.95
+    skill_levels: Optional[tuple[str, ...]] = None
+    categories: Optional[tuple[str, ...]] = None
+    max_price: Optional[float] = None
     f_betas: tuple[float, ...] = (0.5, 2.0)
     compare_modes: Optional[tuple[str, ...]] = None
     zero_division: float = 0.0
@@ -119,6 +130,14 @@ class EvalParams:
             )
         if any(beta < 0 for beta in self.f_betas):
             raise ValueError(f"f_betas must be >= 0, got {self.f_betas}")
+        if self.n_bootstrap < 0:
+            raise ValueError(f"n_bootstrap must be >= 0, got {self.n_bootstrap}")
+        if not 0.0 < self.bootstrap_confidence < 1.0:
+            raise ValueError(
+                f"bootstrap_confidence must be in (0,1), got {self.bootstrap_confidence}"
+            )
+        if self.max_price is not None and self.max_price < 0:
+            raise ValueError(f"max_price must be >= 0, got {self.max_price}")
 
     def effective_ks(self) -> tuple[int, ...]:
         """Return the cutoffs to evaluate (``ks`` if set, else ``(k,)``)."""
@@ -143,10 +162,24 @@ class EvalParams:
             "tag_any",
             "f_betas",
             "compare_modes",
+            "skill_levels",
+            "categories",
         ):
             if data.get(key) is not None:
                 data[key] = list(data[key])
         return data
+
+    def search_filters(self) -> Optional[Any]:
+        """Build a :class:`~app.vector_store.qdrant_client.SearchFilters` if set."""
+        if not self.skill_levels and not self.categories and self.max_price is None:
+            return None
+        from app.vector_store.qdrant_client import SearchFilters
+
+        return SearchFilters(
+            skill_levels=list(self.skill_levels) if self.skill_levels else None,
+            categories=list(self.categories) if self.categories else None,
+            max_price=self.max_price,
+        )
 
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> "EvalParams":
@@ -168,6 +201,8 @@ class EvalParams:
                 "tag_any",
                 "f_betas",
                 "compare_modes",
+                "skill_levels",
+                "categories",
             } and isinstance(value, list):
                 kwargs[key] = tuple(value)
             else:

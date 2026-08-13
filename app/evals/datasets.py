@@ -348,6 +348,62 @@ GOLDEN_CLASSIFICATION_FIXTURES: tuple[ClassificationFixture, ...] = (
 )
 
 
+#: Graded-item fixtures for thresholded relevance scoring (grader eval path).
+#: ``relevant`` is ground truth; ``relevance_score`` mimics judge/heuristic output.
+GOLDEN_GRADER_SCORE_FIXTURES: tuple[dict[str, Any], ...] = (
+    {
+        "id": "clear-separation",
+        "items": (
+            {"relevance_score": 0.9, "relevant": True},
+            {"relevance_score": 0.85, "relevant": True},
+            {"relevance_score": 0.2, "relevant": False},
+            {"relevance_score": 0.1, "relevant": False},
+        ),
+        "threshold": 0.35,
+        "expected": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+        },
+    },
+    {
+        "id": "borderline-heuristic",
+        # Agent heuristic threshold is 0.35 — one true positive sits just above.
+        "items": (
+            {"relevance_score": 0.4, "relevant": True},
+            {"relevance_score": 0.3, "relevant": True},  # FN at 0.35
+            {"relevance_score": 0.36, "relevant": False},  # FP at 0.35
+            {"relevance_score": 0.1, "relevant": False},
+        ),
+        "threshold": 0.35,
+        # pred at 0.35: [1, 0, 1, 0]; true [1,1,0,0] → TP1 FP1 FN1 TN1
+        "expected": {
+            "accuracy": 0.5,
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+        },
+    },
+    {
+        "id": "strict-half",
+        "items": (
+            {"relevance_score": 0.7, "relevant": True},
+            {"relevance_score": 0.55, "relevant": True},
+            {"relevance_score": 0.45, "relevant": False},
+            {"relevance_score": 0.2, "relevant": False},
+        ),
+        "threshold": 0.5,
+        "expected": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+        },
+    },
+)
+
+
 #: Multi-class fixtures: expected keys use ``accuracy`` plus micro/macro F1.
 GOLDEN_MULTICLASS_FIXTURES: tuple[dict[str, Any], ...] = (
     {

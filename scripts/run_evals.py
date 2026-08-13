@@ -137,6 +137,33 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="keyword",
         help="Baseline mode for --compare-modes deltas (default keyword)",
     )
+    parser.add_argument(
+        "--leave-one-out",
+        action="store_true",
+        help="Report leave-one-case-out ranking stability",
+    )
+    parser.add_argument(
+        "--skill-level",
+        action="append",
+        dest="skill_levels",
+        default=None,
+        help="Metadata filter: skill level (repeatable)",
+    )
+    parser.add_argument(
+        "--category",
+        action="append",
+        dest="categories",
+        default=None,
+        help="Metadata filter: category (repeatable)",
+    )
+    parser.add_argument("--max-price", type=float, default=None)
+    parser.add_argument(
+        "--bootstrap",
+        type=int,
+        default=0,
+        help="Bootstrap resamples for classification CI (classification-only path)",
+    )
+    parser.add_argument("--csv", action="store_true", help="Emit CSV instead of a table")
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     parser.add_argument(
         "--no-per-case",
@@ -187,6 +214,11 @@ def main(argv: list[str] | None = None) -> int:
         include_map=not args.no_map,
         f_betas=tuple(args.f_betas) if args.f_betas else (0.5, 2.0),
         compare_modes=tuple(args.compare_modes) if args.compare_modes else None,
+        leave_one_out=args.leave_one_out,
+        skill_levels=tuple(args.skill_levels) if args.skill_levels else None,
+        categories=tuple(args.categories) if args.categories else None,
+        max_price=args.max_price,
+        n_bootstrap=args.bootstrap,
         include_per_case=not args.no_per_case,
         extra={"tag": args.tag} if args.tag else {},
     )
@@ -214,6 +246,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.json:
             print(metrics_to_json(metrics))
+        elif args.csv:
+            from app.evals.report import metrics_to_csv
+
+            print(metrics_to_csv(metrics))
         else:
             title = (
                 "Retrieval mode compare"
