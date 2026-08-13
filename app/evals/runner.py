@@ -26,10 +26,13 @@ from app.evals.metrics import (
     classification_metrics_bundle,
     mean_average_precision_at_k,
     mean_ndcg_at_k,
+    metrics_delta,
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
+    precision_recall_auc,
     ranking_metrics_at_k,
     scores_to_labels,
+    summarize_numeric_fields,
     threshold_sweep_metrics,
 )
 from app.evals.report import format_metrics_report
@@ -215,11 +218,61 @@ def run_retrieval_eval(
     }
     if params.include_per_case:
         metrics["per_case"] = per_case
+        if params.include_per_case_summary:
+            metrics["per_case_summary"] = summarize_numeric_fields(per_case)
 
     passed, failures = params.passes_gates(metrics)
     metrics["passed_gates"] = passed
     metrics["gate_failures"] = failures
     return metrics
+
+
+def compare_retrieval_modes(
+    db: Session,
+    *,
+    modes: Sequence[str] = ("hybrid", "keyword"),
+    params: Optional[EvalParams] = None,
+    cases: Optional[Sequence[RetrievalCase]] = None,
+    baseline: str = "keyword",
+) -> dict[str, Any]:
+    """Run the same golden set under multiple retrieval modes and diff metrics.
+
+    Returns::
+
+        {
+          "modes": {mode: metrics_dict, ...},
+          "delta_vs_baseline": {mode: {metric: delta, ...}, ...},
+          "baseline": baseline,
+          "params": ...,
+        }
+    """
+    base_params = params or DEFAULT_EVAL_PARAMS
+    mode_metrics: dict[str, dict[str, Any]] = {}
+    for mode in modes:
+        mode_params = base_params.with_updates(
+            retrieval_mode=mode,  # type: ignore[arg-type]
+            include_per_case=False,
+        )
+        mode_metrics[mode] = run_retrieval_eval(
+            db, params=mode_params, cases=cases
+        )
+
+    if baseline not in mode_metrics:
+        baseline = next(iter(mode_metrics))
+
+    deltas: dict[str, dict[str, float]] = {}
+    for mode, metrics in mode_metrics.items():
+        if mode == baseline:
+            continue
+        deltas[mode] = metrics_delta(mode_metrics[baseline], metrics)
+
+    return {
+        "task": "retrieval_mode_compare",
+        "baseline": baseline,
+        "modes": mode_metrics,
+        "delta_vs_baseline": deltas,
+        "params": base_params.to_dict(),
+    }
 
 
 def run_classification_eval(
@@ -302,6 +355,9 @@ def run_classification_eval(
         )
         metrics["best_threshold_by_f1"] = best_threshold_by_metric(
             metrics["by_threshold"], metric="f1"
+        )
+        metrics["pr_auc"] = precision_recall_auc(
+            metrics["by_threshold"], zero_division=params.zero_division
         )
 
     passed, failures = params.passes_gates(metrics)

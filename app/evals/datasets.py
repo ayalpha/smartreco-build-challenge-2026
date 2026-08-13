@@ -321,4 +321,56 @@ GOLDEN_CLASSIFICATION_FIXTURES: tuple[ClassificationFixture, ...] = (
         expected={"accuracy": 0.5, "precision": 0.5, "recall": 0.5, "f1": 0.5},
         notes="At threshold 0.5 → pred [1,0,1,0].",
     ),
+    ClassificationFixture(
+        id="all-negative-true",
+        y_true=(0, 0, 0, 0),
+        y_pred=(0, 0, 1, 0),
+        expected={
+            "accuracy": 0.75,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+        },
+        notes="No true positives possible; FP=1 TN=3.",
+    ),
+    ClassificationFixture(
+        id="high-score-confidence",
+        y_true=(1, 1, 1, 0, 0),
+        scores=(0.95, 0.91, 0.88, 0.12, 0.05),
+        expected={
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+        },
+        notes="Well-separated scores at default 0.5 threshold.",
+    ),
+)
+
+
+#: Multi-class fixtures: expected keys use ``accuracy`` plus micro/macro F1.
+GOLDEN_MULTICLASS_FIXTURES: tuple[dict[str, Any], ...] = (
+    {
+        "id": "three-class-hand-checked",
+        "y_true": ["A", "A", "B", "B", "C"],
+        "y_pred": ["A", "B", "A", "B", "C"],
+        # correct 3/5 → accuracy 0.6; micro P=R=F1=0.6; macro F1 = 2/3
+        "expected": {
+            "accuracy": 0.6,
+            "micro_f1": 0.6,
+            "macro_f1": 2.0 / 3.0,
+            "weighted_f1": 0.6,
+        },
+    },
+    {
+        "id": "perfect-multiclass",
+        "y_true": ["x", "y", "z", "x"],
+        "y_pred": ["x", "y", "z", "x"],
+        "expected": {
+            "accuracy": 1.0,
+            "micro_f1": 1.0,
+            "macro_f1": 1.0,
+            "weighted_f1": 1.0,
+        },
+    },
 )

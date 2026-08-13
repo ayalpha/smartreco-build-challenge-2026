@@ -767,6 +767,64 @@ def metrics_delta(
     return delta
 
 
+def precision_recall_auc(
+    sweep_rows: Sequence[Mapping[str, Any]],
+    *,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Trapezoidal area under the precision–recall curve from a threshold sweep.
+
+    Rows are sorted by increasing recall. Not sklearn-identical (no
+    interpolation to the full [0,1] grid) but deterministic and dependency-free.
+    """
+    if len(sweep_rows) < 2:
+        return float(zero_division)
+    points = sorted(
+        (
+            (float(row.get("recall", 0.0)), float(row.get("precision", 0.0)))
+            for row in sweep_rows
+        ),
+        key=lambda pair: pair[0],
+    )
+    area = 0.0
+    for (r0, p0), (r1, p1) in zip(points, points[1:]):
+        area += (r1 - r0) * 0.5 * (p0 + p1)
+    return max(0.0, area)
+
+
+def summarize_numeric_fields(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    keys: Sequence[str] = (
+        "precision_at_k",
+        "recall_at_k",
+        "f1_at_k",
+        "hit_at_k",
+        "accuracy_at_k",
+        "mrr",
+    ),
+) -> dict[str, dict[str, float]]:
+    """Mean / min / max for selected numeric fields across per-case rows."""
+    summary: dict[str, dict[str, float]] = {}
+    for key in keys:
+        values = []
+        for row in rows:
+            if key in row and row[key] is not None:
+                try:
+                    values.append(float(row[key]))
+                except (TypeError, ValueError):
+                    continue
+        if not values:
+            continue
+        summary[key] = {
+            "mean": sum(values) / len(values),
+            "min": min(values),
+            "max": max(values),
+            "n": float(len(values)),
+        }
+    return summary
+
+
 def _log2(value: float) -> float:
     """log2 without importing math (keeps the module stdlib-light)."""
     from math import log2

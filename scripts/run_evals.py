@@ -126,6 +126,17 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Extra F-beta value to report (repeatable; default 0.5 and 2.0)",
     )
+    parser.add_argument(
+        "--compare-modes",
+        nargs="*",
+        default=None,
+        help="Compare retrieval modes, e.g. --compare-modes hybrid keyword",
+    )
+    parser.add_argument(
+        "--baseline-mode",
+        default="keyword",
+        help="Baseline mode for --compare-modes deltas (default keyword)",
+    )
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     parser.add_argument(
         "--no-per-case",
@@ -145,8 +156,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from app.database import SessionLocal, init_db
     from app.evals.config import EvalParams
-    from app.evals.runner import run_retrieval_eval
-    from app.evals.report import metrics_to_json
+    from app.evals.runner import compare_retrieval_modes, run_retrieval_eval
+    from app.evals.report import format_metrics_report, metrics_to_json
 
     init_db()
     params = EvalParams(
@@ -175,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
         include_ndcg=not args.no_ndcg,
         include_map=not args.no_map,
         f_betas=tuple(args.f_betas) if args.f_betas else (0.5, 2.0),
+        compare_modes=tuple(args.compare_modes) if args.compare_modes else None,
         include_per_case=not args.no_per_case,
         extra={"tag": args.tag} if args.tag else {},
     )
@@ -183,14 +195,33 @@ def main(argv: list[str] | None = None) -> int:
         if args.seed_sample:
             _seed_sample_catalog(db)
 
-        metrics = run_retrieval_eval(db, params=params)
+        if args.compare_modes:
+            metrics = compare_retrieval_modes(
+                db,
+                modes=tuple(args.compare_modes),
+                params=params,
+                baseline=args.baseline_mode,
+            )
+            # Gate against the hybrid (or first non-baseline) mode when present.
+            gate_source = (
+                metrics["modes"].get("hybrid")
+                or next(iter(metrics["modes"].values()))
+            )
+            passed = gate_source.get("passed_gates", True)
+        else:
+            metrics = run_retrieval_eval(db, params=params)
+            passed = metrics.get("passed_gates", True)
+
         if args.json:
             print(metrics_to_json(metrics))
         else:
-            from app.evals.report import format_metrics_report
-
-            print(format_metrics_report(metrics, title="Retrieval eval"))
-        return 0 if metrics.get("passed_gates", True) else 1
+            title = (
+                "Retrieval mode compare"
+                if args.compare_modes
+                else "Retrieval eval"
+            )
+            print(format_metrics_report(metrics, title=title))
+        return 0 if passed else 1
 
 
 def _seed_sample_catalog(db) -> None:

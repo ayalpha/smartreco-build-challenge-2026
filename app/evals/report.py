@@ -27,6 +27,11 @@ def metrics_to_table(
         "precision",
         "recall",
         "f1",
+        "f0_5",
+        "f2",
+        "specificity",
+        "balanced_accuracy",
+        "pr_auc",
         "accuracy_at_k",
         "precision_at_k",
         "recall_at_k",
@@ -34,6 +39,8 @@ def metrics_to_table(
         "hit_at_k",
         "hit_rate",
         "mrr",
+        "ndcg_at_k",
+        "map_at_k",
         "n_queries",
         "k",
         "passed_gates",
@@ -48,13 +55,34 @@ def metrics_to_table(
         seen.add(key)
 
     for key, value in metrics.items():
-        if key in seen or key in {"per_case", "params", "by_k", "per_class", "cases"}:
+        if key in seen or key in {
+            "per_case",
+            "params",
+            "by_k",
+            "per_class",
+            "cases",
+            "by_threshold",
+            "by_average",
+            "classification",
+            "modes",
+            "delta_vs_baseline",
+            "bundle",
+            "per_case_summary",
+        }:
             continue
         if isinstance(value, (int, float, bool, str)) or value is None:
             rows.append((key, _format_value(value, float_digits)))
 
     # Compact nest summaries
-    for nest_key in ("by_k", "per_class", "per_case", "cases"):
+    for nest_key in (
+        "by_k",
+        "per_class",
+        "per_case",
+        "cases",
+        "by_threshold",
+        "modes",
+        "classification",
+    ):
         if nest_key in metrics and isinstance(metrics[nest_key], (dict, list)):
             size = len(metrics[nest_key])
             rows.append((nest_key, f"<{size} entries>"))
@@ -97,6 +125,41 @@ def format_metrics_report(
             if isinstance(block, dict):
                 for line in metrics_to_table(block).splitlines():
                     sections.append(f"    {line}")
+
+    by_threshold = metrics.get("by_threshold")
+    if isinstance(by_threshold, list) and by_threshold:
+        sections.append("")
+        sections.append("Metrics by threshold")
+        for row in by_threshold:
+            if not isinstance(row, dict):
+                continue
+            thr = row.get("threshold")
+            sections.append(
+                f"  — t={thr}: "
+                f"A={_format_value(row.get('accuracy'), 4)} "
+                f"P={_format_value(row.get('precision'), 4)} "
+                f"R={_format_value(row.get('recall'), 4)} "
+                f"F1={_format_value(row.get('f1'), 4)}"
+            )
+
+    modes = metrics.get("modes")
+    if isinstance(modes, dict) and modes:
+        sections.append("")
+        sections.append("Modes")
+        for mode_name, block in modes.items():
+            sections.append(f"  — mode={mode_name}")
+            if isinstance(block, dict):
+                for line in metrics_to_table(block).splitlines()[:12]:
+                    sections.append(f"    {line}")
+        deltas = metrics.get("delta_vs_baseline")
+        if isinstance(deltas, dict) and deltas:
+            sections.append("")
+            sections.append(f"Delta vs baseline ({metrics.get('baseline')})")
+            for mode_name, delta in deltas.items():
+                if isinstance(delta, dict):
+                    sections.append(f"  — {mode_name}")
+                    for line in metrics_to_table(delta).splitlines():
+                        sections.append(f"    {line}")
 
     gates = metrics.get("gate_failures")
     if gates:

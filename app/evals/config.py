@@ -49,9 +49,12 @@ class EvalParams:
         include_per_case: Whether the report embeds per-query breakdowns.
         include_ndcg: Whether to attach nDCG@k alongside ranking metrics.
         include_map: Whether to attach MAP@k alongside ranking metrics.
+        include_per_case_summary: Mean/min/max over per-case ranking metrics.
         f_betas: Extra F-beta scores to report in classification bundles
             (always includes F1 via beta=1 implicitly in primary metrics).
         min_ndcg / min_map: Optional ranking quality gates.
+        min_pr_auc: Optional gate on precision–recall AUC (score-based evals).
+        compare_modes: When non-empty, CLI/harness can run multi-mode compare.
         zero_division: Value used when a metric denominator is zero
             (sklearn-compatible convention; default 0.0).
     """
@@ -70,6 +73,7 @@ class EvalParams:
     min_mrr: Optional[float] = None
     min_ndcg: Optional[float] = None
     min_map: Optional[float] = None
+    min_pr_auc: Optional[float] = None
     split: SplitName = "all"
     case_ids: Optional[tuple[str, ...]] = None
     exclude_case_ids: Optional[tuple[str, ...]] = None
@@ -81,9 +85,11 @@ class EvalParams:
     retrieval_mode: RetrievalMode = "hybrid"
     use_catalog_accuracy: bool = True
     include_per_case: bool = True
+    include_per_case_summary: bool = True
     include_ndcg: bool = True
     include_map: bool = True
     f_betas: tuple[float, ...] = (0.5, 2.0)
+    compare_modes: Optional[tuple[str, ...]] = None
     zero_division: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -136,6 +142,7 @@ class EvalParams:
             "tags",
             "tag_any",
             "f_betas",
+            "compare_modes",
         ):
             if data.get(key) is not None:
                 data[key] = list(data[key])
@@ -160,6 +167,7 @@ class EvalParams:
                 "tags",
                 "tag_any",
                 "f_betas",
+                "compare_modes",
             } and isinstance(value, list):
                 kwargs[key] = tuple(value)
             else:
@@ -182,6 +190,7 @@ class EvalParams:
             ("mrr", self.min_mrr, ("mrr",)),
             ("ndcg", self.min_ndcg, ("ndcg_at_k", "ndcg")),
             ("map", self.min_map, ("map_at_k", "map")),
+            ("pr_auc", self.min_pr_auc, ("pr_auc",)),
         )
         for label, minimum, keys in checks:
             if minimum is None:

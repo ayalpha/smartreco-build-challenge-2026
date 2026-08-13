@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.evals.config import DEFAULT_EVAL_PARAMS, EvalParams
 from app.evals.datasets import (
     GOLDEN_CLASSIFICATION_FIXTURES,
+    GOLDEN_MULTICLASS_FIXTURES,
     GOLDEN_RETRIEVAL_CASES,
     RetrievalCase,
     filter_cases,
@@ -34,13 +35,19 @@ from app.evals.metrics import (
     metrics_delta,
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
+    precision_recall_auc,
     ranking_metrics_at_k,
     scores_to_labels,
     specificity_from_confusion,
+    summarize_numeric_fields,
     threshold_sweep_metrics,
 )
 from app.evals.report import format_metrics_report, metrics_to_json, metrics_to_table
-from app.evals.runner import run_classification_eval, run_retrieval_eval
+from app.evals.runner import (
+    compare_retrieval_modes,
+    run_classification_eval,
+    run_retrieval_eval,
+)
 from app.models.product import Product
 
 
@@ -904,3 +911,119 @@ class TestGoldenClassificationFixtures:
         assert bundle["precision"] == pytest.approx(report.precision)
         assert bundle["recall"] == pytest.approx(report.recall)
         assert bundle["f1"] == pytest.approx(report.f1)
+
+
+class TestMulticlassGoldenFixtures:
+    @pytest.mark.parametrize(
+        "fixture",
+        list(GOLDEN_MULTICLASS_FIXTURES),
+        ids=[f["id"] for f in GOLDEN_MULTICLASS_FIXTURES],
+    )
+    def test_micro_macro_weighted_f1(self, fixture: dict[str, Any]) -> None:
+        y_true = fixture["y_true"]
+        y_pred = fixture["y_pred"]
+        expected = fixture["expected"]
+        micro = classification_metrics(y_true, y_pred, average="micro")
+        macro = classification_metrics(y_true, y_pred, average="macro")
+        weighted = classification_metrics(y_true, y_pred, average="weighted")
+        assert micro.accuracy == pytest.approx(expected["accuracy"])
+        assert micro.f1 == pytest.approx(expected["micro_f1"])
+        assert macro.f1 == pytest.approx(expected["macro_f1"])
+        assert weighted.f1 == pytest.approx(expected["weighted_f1"])
+        # micro precision/recall track accuracy for single-label multi-class
+        assert micro.precision == pytest.approx(expected["accuracy"])
+        assert micro.recall == pytest.approx(expected["accuracy"])
+
+
+class TestPrecisionRecallAucAndSummary:
+    def test_pr_auc_non_negative(self) -> None:
+        rows = threshold_sweep_metrics(
+            [1, 1, 0, 0, 1, 0],
+            [0.95, 0.7, 0.6, 0.2, 0.4, 0.1],
+            thresholds=(0.2, 0.4, 0.6, 0.8),
+        )
+        auc = precision_recall_auc(rows)
+        assert auc >= 0.0
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            y_pred=[],
+            scores=[0.9, 0.4, 0.6, 0.1],
+            params=EvalParams(
+                thresholds=(0.3, 0.5, 0.8),
+                min_pr_auc=0.0,
+            ),
+        )
+        assert "pr_auc" in metrics
+        assert metrics["passed_gates"] is True
+
+    def test_summarize_numeric_fields(self) -> None:
+        summary = summarize_numeric_fields(
+            [
+                {"precision_at_k": 1.0, "recall_at_k": 0.5, "hit_at_k": 1.0},
+                {"precision_at_k": 0.0, "recall_at_k": 0.0, "hit_at_k": 0.0},
+            ]
+        )
+        assert summary["precision_at_k"]["mean"] == pytest.approx(0.5)
+        assert summary["hit_at_k"]["min"] == pytest.approx(0.0)
+        assert summary["hit_at_k"]["max"] == pytest.approx(1.0)
+
+
+class TestModeCompareAndPerCaseSummary:
+    def test_compare_hybrid_vs_keyword(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        params = EvalParams(
+            k=3,
+            ks=(3,),
+            split="train",
+            limit_cases=4,
+            include_ndcg=True,
+            include_map=True,
+        )
+        result = compare_retrieval_modes(
+            db,
+            modes=("hybrid", "keyword"),
+            params=params,
+            baseline="keyword",
+        )
+        assert result["task"] == "retrieval_mode_compare"
+        assert set(result["modes"]) == {"hybrid", "keyword"}
+        assert "hybrid" in result["delta_vs_baseline"]
+        for mode in ("hybrid", "keyword"):
+            block = result["modes"][mode]
+            for key in ("accuracy", "precision", "recall", "f1", "hit_at_k"):
+                assert key in block
+                assert 0.0 <= float(block[key]) <= 1.0 + 1e-9
+
+        report = format_metrics_report(result, title="Mode compare")
+        assert "Modes" in report
+        assert "Delta vs baseline" in report
+
+    def test_per_case_summary_attached(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=2,
+                ks=(2,),
+                split="train",
+                limit_cases=3,
+                include_per_case=True,
+                include_per_case_summary=True,
+            ),
+        )
+        assert "per_case_summary" in metrics
+        assert "precision_at_k" in metrics["per_case_summary"]
+        assert metrics["per_case_summary"]["precision_at_k"]["n"] == 3.0
+
+    def test_report_includes_threshold_section(self) -> None:
+        metrics = run_classification_eval(
+            [1, 0, 1, 0],
+            y_pred=[],
+            scores=[0.9, 0.2, 0.7, 0.1],
+            params=EvalParams(thresholds=(0.3, 0.6)),
+        )
+        text = format_metrics_report(metrics, title="Class report")
+        assert "Metrics by threshold" in text
+        assert "F1=" in text
