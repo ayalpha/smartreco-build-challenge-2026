@@ -34,7 +34,7 @@
           ← Continue browsing
         </a>
         <button type="button" id="cart-clear"
-                class="rounded-md border border-ink-700 px-3.5 py-2 text-xs font-semibold text-mist-400 transition hover:border-rose-500/40 hover:text-rose-300">
+                class="ds-btn-secondary border-ink-700 px-3.5 py-2 text-xs text-mist-400 hover:border-rose-500/40 hover:text-rose-300">
           Clear cart
         </button>
       </div>
@@ -42,7 +42,7 @@
 
     <!-- Order summary -->
     <aside>
-      <div class="sticky top-24 rounded-2xl border border-ink-700/70 bg-ink-900 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
+      <div class="ds-elev-inset sticky top-24 rounded-ai border border-ink-700/70 bg-ink-900 p-5">
         <h2 class="text-sm font-bold text-white">Order summary</h2>
         <dl class="mt-4 space-y-2.5 text-sm">
           <div class="flex justify-between gap-3">
@@ -59,8 +59,7 @@
           </div>
         </dl>
 
-        <a href="/checkout"
-           class="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-signal-500 px-4 py-3 text-sm font-bold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_22px_rgba(34,201,138,.3)] active:scale-[0.98]">
+        <a href="/checkout" class="ds-btn-primary mt-5 w-full py-3 font-bold">
           Proceed to checkout →
         </a>
 
@@ -113,7 +112,7 @@
         ? '<img src="' + esc(line.thumbnail_url) + '" alt="" aria-hidden="true" loading="lazy" ' +
           'class="h-20 w-32 shrink-0 rounded-lg object-cover">'
         : '<div class="h-20 w-32 shrink-0 rounded-lg bg-ink-800"></div>';
-      return '<li class="reveal-child flex flex-col gap-4 rounded-xl border border-ink-700/70 bg-ink-900 p-4 sm:flex-row sm:items-center">' +
+      return '<li class="reveal-child flex flex-col gap-4 rounded-card border border-ink-700/70 bg-ink-900 p-4 sm:flex-row sm:items-center">' +
         '<a href="/product/' + line.id + '" class="shrink-0">' + cover + '</a>' +
         '<div class="min-w-0 flex-1">' +
           '<a href="/product/' + line.id + '" class="block text-[15px] font-semibold leading-snug text-white transition hover:text-signal-400">' +

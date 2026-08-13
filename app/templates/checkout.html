@@ -32,7 +32,7 @@
     <form id="payment-form" novalidate class="space-y-6">
 
       <!-- Contact -->
-      <fieldset class="rounded-2xl border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
+      <fieldset class="rounded-ai border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
         <legend class="flex items-center gap-2 px-1 text-sm font-bold text-white">
           <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 font-mono text-[10px] text-signal-400">1</span>
           Contact
@@ -42,13 +42,13 @@
           <input id="ck-email" name="email" type="email" autocomplete="email" required
                  value="{{ current_user.email if current_user else '' }}"
                  placeholder="you@example.com"
-                 class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                 class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
           <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
         </div>
       </fieldset>
 
       <!-- Payment -->
-      <fieldset class="rounded-2xl border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
+      <fieldset class="rounded-ai border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
         <legend class="flex items-center gap-2 px-1 text-sm font-bold text-white">
           <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 font-mono text-[10px] text-signal-400">2</span>
           Payment
@@ -59,7 +59,7 @@
             <label for="ck-name" class="block text-sm font-medium text-mist-200">Name on card</label>
             <input id="ck-name" name="name" type="text" autocomplete="cc-name" required
                    placeholder="Ada Lovelace"
-                   class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                   class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
             <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
           </div>
 
@@ -68,7 +68,7 @@
             <div class="relative mt-1.5">
               <input id="ck-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number"
                      required maxlength="23" placeholder="4242 4242 4242 4242"
-                     class="ck-field w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 pr-16 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                     class="ck-field {{ ui.field_class('px-3.5 pr-16 font-mono') }}">
               <span id="ck-brand" class="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-wider text-mist-500"></span>
             </div>
             <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
@@ -79,14 +79,14 @@
               <label for="ck-expiry" class="block text-sm font-medium text-mist-200">Expiry</label>
               <input id="ck-expiry" name="expiry" type="text" inputmode="numeric" autocomplete="cc-exp"
                      required maxlength="5" placeholder="MM/YY"
-                     class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                     class="ck-field {{ ui.field_class('mt-1.5 px-3.5 font-mono') }}">
               <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
             </div>
             <div>
               <label for="ck-cvv" class="block text-sm font-medium text-mist-200">CVV</label>
               <input id="ck-cvv" name="cvv" type="text" inputmode="numeric" autocomplete="cc-csc"
                      required maxlength="4" placeholder="123"
-                     class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                     class="ck-field {{ ui.field_class('mt-1.5 px-3.5 font-mono') }}">
               <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
             </div>
           </div>
@@ -94,7 +94,7 @@
       </fieldset>
 
       <!-- Billing address -->
-      <fieldset class="rounded-2xl border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
+      <fieldset class="rounded-ai border border-ink-700/70 bg-ink-900 p-5 sm:p-6">
         <legend class="flex items-center gap-2 px-1 text-sm font-bold text-white">
           <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 font-mono text-[10px] text-signal-400">3</span>
           Billing address
@@ -105,7 +105,7 @@
             <label for="ck-address" class="block text-sm font-medium text-mist-200">Address</label>
             <input id="ck-address" name="address" type="text" autocomplete="street-address" required
                    placeholder="12 Kingsway"
-                   class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                   class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
             <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
           </div>
           <div class="grid gap-4 sm:grid-cols-3">
@@ -113,20 +113,20 @@
               <label for="ck-city" class="block text-sm font-medium text-mist-200">City</label>
               <input id="ck-city" name="city" type="text" autocomplete="address-level2" required
                      placeholder="London"
-                     class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                     class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
               <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
             </div>
             <div>
               <label for="ck-postcode" class="block text-sm font-medium text-mist-200">Postcode</label>
               <input id="ck-postcode" name="postcode" type="text" autocomplete="postal-code" required
                      placeholder="WC2B 6UN"
-                     class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+                     class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
               <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
             </div>
             <div>
               <label for="ck-country" class="block text-sm font-medium text-mist-200">Country</label>
               <select id="ck-country" name="country"
-                      class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 outline-none transition focus:border-signal-500/60">
+                      class="ck-field {{ ui.field_class('mt-1.5 px-3.5') }}">
                 {% for c in ['United Kingdom', 'United States', 'India', 'Germany', 'Canada', 'Australia', 'Singapore'] %}
                   <option>{{ c }}</option>
                 {% endfor %}
@@ -139,13 +139,13 @@
       <!-- Pay -->
       <div class="space-y-3">
         <button type="submit" id="ck-pay"
-                class="flex w-full items-center justify-center gap-2.5 rounded-lg bg-signal-500 px-5 py-3.5 text-[15px] font-bold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_26px_rgba(34,201,138,.32)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60">
+                class="ds-btn-primary w-full gap-2.5 px-5 py-3.5 text-[15px] font-bold">
           <span id="ck-pay-spinner" class="hidden h-4 w-4 animate-spin rounded-full border-2 border-ink-950 border-t-transparent"></span>
           <span id="ck-pay-label">Pay <span id="ck-pay-total">$0.00</span></span>
         </button>
 
         <button type="button" id="ck-stripe"
-                class="flex w-full items-center justify-center gap-2.5 rounded-lg border border-ink-600 bg-ink-900 px-5 py-3 text-sm font-semibold text-mist-100 transition hover:border-iris-500/50 hover:bg-ink-850 active:scale-[0.99]">
+                class="ds-btn-iris w-full gap-2.5 border-ink-600 bg-ink-900 px-5 py-3 font-semibold text-mist-100 hover:border-iris-500/50 hover:bg-ink-850">
           <span class="font-bold tracking-tight text-iris-300">stripe</span>
           <span class="text-mist-400">Pay with Stripe</span>
         </button>
@@ -159,7 +159,7 @@
 
     <!-- ============================ ORDER SUMMARY =========================== -->
     <aside>
-      <div class="sticky top-24 rounded-2xl border border-ink-700/70 bg-ink-900 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
+      <div class="ds-elev-inset sticky top-24 rounded-ai border border-ink-700/70 bg-ink-900 p-5">
         <h2 class="text-sm font-bold text-white">Order summary</h2>
         <ul id="ck-lines" class="mt-4 space-y-3 border-b border-ink-700/70 pb-4"></ul>
         <dl class="mt-4 space-y-2.5 text-sm">

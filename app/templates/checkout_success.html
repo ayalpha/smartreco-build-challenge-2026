@@ -8,7 +8,7 @@
 
   <div class="success-check mx-auto grid h-20 w-20 place-items-center rounded-full bg-signal-500/15 ring-1 ring-signal-500/30">
     <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path class="success-tick" d="M5 12.5 10 17.5 19 7" stroke="#4ADE9A" stroke-width="2.4"
+      <path class="success-tick text-signal-400" d="M5 12.5 10 17.5 19 7" stroke="currentColor" stroke-width="2.4"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>
@@ -20,8 +20,8 @@
     <span id="ok-email" class="font-medium text-mist-200">your inbox</span>.
   </p>
 
-  <!-- Order detail -->
-  <div id="ok-card" class="ai-surface mt-8 hidden overflow-hidden rounded-2xl border border-ink-700/70 bg-ink-900 text-left">
+  {# Commerce receipt — not AI-generated; no .ai-surface chrome. #}
+  <div id="ok-card" class="ds-elev-inset mt-8 hidden overflow-hidden rounded-ai border border-ink-700/70 bg-ink-900 text-left">
     <div class="flex items-center justify-between gap-3 border-b border-ink-700/70 px-5 py-3.5">
       <p class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">order summary</p>
       <p id="ok-ref" class="font-mono text-[10px] lowercase text-mist-400"></p>
@@ -34,12 +34,8 @@
   </div>
 
   <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-    <a href="/" class="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
-      Start learning →
-    </a>
-    <a href="/catalog" class="rounded-md border border-ink-600 px-5 py-2.5 text-sm font-semibold text-mist-200 transition hover:border-ink-500 hover:text-white active:scale-[0.98]">
-      Browse more courses
-    </a>
+    <a href="/" class="ds-btn-primary px-5 py-2.5">Start learning →</a>
+    <a href="/catalog" class="ds-btn-secondary px-5 py-2.5 font-semibold">Browse more courses</a>
   </div>
 
   <p class="mt-8 font-mono text-[10px] lowercase leading-relaxed text-mist-500">

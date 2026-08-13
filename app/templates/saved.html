@@ -19,7 +19,7 @@
     </p>
   </div>
   {% if saved %}
-    <a href="/" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-signal-500/50 hover:text-signal-300 active:scale-[0.98]">
+    <a href="/" class="ds-btn-secondary px-4 py-2 hover:border-signal-500/50 hover:text-signal-300">
       See how this shaped my picks →
     </a>
   {% endif %}
@@ -32,7 +32,7 @@
     {% endfor %}
   </div>
 
-  <p class="mt-10 rounded-[10px] border border-ink-700/70 bg-ink-900 px-5 py-4 font-mono text-[11px] lowercase leading-relaxed text-mist-500">
+  <p class="mt-10 rounded-card border border-ink-700/70 bg-ink-900 px-5 py-4 font-mono text-[11px] lowercase leading-relaxed text-mist-500">
     saves are stored as add_to_cart events — the same behavioural signal the
     <a href="/architecture" class="text-iris-400 underline decoration-ink-600 underline-offset-2 hover:text-iris-300">interest_extractor</a>
     node reads. this shortlist is not a separate system; it feeds the agent directly.
