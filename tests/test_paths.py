@@ -182,3 +182,12 @@ def test_path_page_prefills_saved_goal(client, auth_headers, user, db) -> None:
     )
     assert response.status_code == 200
     assert "Become a full-stack engineer" in response.text
+
+
+def test_path_routes_are_registered(client, auth_headers) -> None:
+    """HTML and JSON path endpoints must be mounted on the app."""
+    assert client.get("/path", headers={**auth_headers, "Accept": "text/html"}).status_code == 200
+    assert client.get("/api/path", headers=auth_headers).status_code == 200
+    openapi = client.get("/openapi.json").json()
+    paths = openapi.get("paths") or {}
+    assert "/api/path" in paths
