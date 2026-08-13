@@ -10,6 +10,7 @@ Two flavours of "current user" exist deliberately:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -26,9 +27,10 @@ from app.security import ACCESS_COOKIE_NAME, AuthError, extract_user_id
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-TEMPLATES_DIR = "app/templates"
+APP_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = APP_DIR / "templates"
 
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def _register_template_globals() -> None:

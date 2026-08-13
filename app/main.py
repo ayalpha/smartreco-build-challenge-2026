@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, AsyncIterator, Optional
 
 from fastapi import Depends, FastAPI, Request, status
@@ -41,6 +42,7 @@ from app.vector_store.qdrant_client import get_vector_store
 settings = get_settings()
 configure_logging()
 logger = logging.getLogger(__name__)
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 DESCRIPTION = """\
 **Nexora** is a behavioural AI recommendation agent for a learning marketplace,
@@ -151,7 +153,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # --- server-rendered pages -------------------------------------------
     app.include_router(recommendations.router)
