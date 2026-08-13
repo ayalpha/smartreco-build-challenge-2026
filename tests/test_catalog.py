@@ -155,6 +155,15 @@ class TestAuthentication:
         assert verify_password("correct horse battery staple", hashed) is True
         assert verify_password("wrong password", hashed) is False
 
+    def test_password_verification_does_not_accept_a_truncated_suffix(self) -> None:
+        from app.security import MAX_PASSWORD_BYTES, hash_password, verify_password
+
+        password = "a" * MAX_PASSWORD_BYTES
+        hashed = hash_password(password)
+
+        assert verify_password(password, hashed) is True
+        assert verify_password(password + "attacker-controlled-suffix", hashed) is False
+
 
 def test_application_import_does_not_depend_on_working_directory(tmp_path: Any) -> None:
     """ASGI servers may be launched outside the repository root."""

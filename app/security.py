@@ -108,11 +108,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if not hashed_password:
         return False
 
+    encoded = plain_password.encode("utf-8")
+    if len(encoded) > MAX_PASSWORD_BYTES:
+        # Do not reproduce bcrypt's legacy 72-byte truncation during login:
+        # otherwise a valid password plus any suffix would also authenticate.
+        return False
+
     try:
         if hashed_password.startswith(PBKDF2_PREFIX):
             return _pbkdf2_verify(plain_password, hashed_password)
         return bcrypt.checkpw(
-            plain_password.encode("utf-8")[:MAX_PASSWORD_BYTES],
+            encoded,
             hashed_password.encode("ascii"),
         )
     except Exception:
