@@ -1,10 +1,15 @@
 {# ---------------------------------------------------------------------------
   Base layout: navigation, flash messages, footer and the behavioural tracker.
 
-  Design system: "ink" surfaces + "mist" text ramp (all pairings WCAG AA),
+  Design system: "ink" surfaces + "mist" text ramp (pairings target WCAG AA),
   signal-green = the agent's OUTCOME colour, iris-violet = the agent's
   REASONING colour. Machine voice = lowercase JetBrains Mono; human voice =
-  Inter. AI-generated surfaces carry the .ai-surface gradient top border.
+  Inter. AI-generated surfaces carry the .ai-surface gradient top border —
+  static chrome (auth, catalog filters, commerce) never gets one.
+
+  Token mirror: Tailwind colors below match CSS variables in custom.css
+  (--canvas/surface/raised/panel/line* ↔ ink; --signal* / --iris*).
+  Shared control classes: .ds-btn-primary|secondary|iris, .ds-field, .ds-card.
 --------------------------------------------------------------------------- #}
 {% import "_components.html" as ui %}
 <!DOCTYPE html>
@@ -43,7 +48,9 @@
             },
             mist: {
               50:  '#F2F5FA',  // primary text      16.9:1 on ink-900
+              100: '#E4EAF2',  // near-primary       ~14:1
               200: '#C7D0DC',  // strong secondary  11.2:1
+              300: '#AEB8C7',  // mid secondary      ~8.5:1
               400: '#98A4B5',  // secondary          6.9:1
               500: '#7E8A9C',  // muted floor        5.0:1
             },
@@ -53,6 +60,11 @@
             iris: {
               300: '#C7BDFC', 400: '#A99EF8', 500: '#8B7CF6',
             },
+          },
+          // Aligns with custom.css --r-card / --r-ai
+          borderRadius: {
+            card: '10px',
+            ai: '16px',
           },
         },
       },
@@ -67,7 +79,7 @@
 
 <body class="h-full bg-ink-950 text-mist-200 font-sans antialiased selection:bg-signal-500/30">
 
-<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded focus:bg-signal-500 focus:px-3 focus:py-2 focus:text-ink-950">Skip to content</a>
+<a href="#main" class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-3 focus-visible:left-3 focus-visible:z-50 focus-visible:rounded focus-visible:bg-signal-500 focus-visible:px-3 focus-visible:py-2 focus-visible:text-ink-950">Skip to content</a>
 
 <!-- ============================== NAVIGATION ============================== -->
 <header class="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
@@ -100,7 +112,7 @@
         <label class="sr-only" for="nav-search">Search courses</label>
         <input id="nav-search" type="search" name="q" placeholder="Search courses…"
                value="{{ filters.q if filters is defined else '' }}"
-               class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+               class="w-52 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-mist-200 placeholder-mist-500 transition focus-visible:border-signal-500/60 focus-visible:ring-1 focus-visible:ring-signal-500/30">
       </form>
 
       <a href="/saved" id="saved-nav" aria-label="Saved courses"
@@ -137,7 +149,7 @@
         </form>
       {% else %}
         <a href="/login" class="hidden rounded-md px-3 py-1.5 text-sm font-medium text-mist-200 transition hover:text-white sm:block">Sign in</a>
-        <a href="/register" class="rounded-md bg-signal-500 px-3.5 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)]">Get started</a>
+        <a href="/register" class="ds-btn-primary px-3.5 py-1.5">Get started</a>
       {% endif %}
 
       {# ---- Mobile menu: <details> disclosure — no JS, natively keyboard-accessible ---- #}
@@ -152,7 +164,7 @@
           <form action="/catalog" method="get" class="p-1.5">
             <label class="sr-only" for="mobile-search">Search courses</label>
             <input id="mobile-search" type="search" name="q" placeholder="Search courses…"
-                   class="w-full rounded-md border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm text-mist-200 placeholder-mist-500 outline-none focus:border-signal-500/60">
+                   class="ds-field bg-ink-900">
           </form>
           {% for href, label in nav_items %}
             <a href="{{ href }}"

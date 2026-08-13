@@ -10,7 +10,38 @@
     consistent branded cover earns.
   - Machine tokens (category, level, telemetry) render lowercase in mono.
   - AI-picked cards (show_pitch) carry the pitch as a quoted, iris-marked line.
+  - signal = outcome CTAs; iris = reasoning / demo-as-agent entry; mono = machine.
+  - Shared control classes live in custom.css (.ds-btn-*, .ds-field) and below.
 --------------------------------------------------------------------------- #}
+
+{# Button variants: primary=signal outcome, secondary=neutral, iris=reasoning. #}
+{% macro btn_primary(label, href=None, type='button', class='', attrs='') %}
+  {% if href %}
+    <a href="{{ href }}" class="ds-btn-primary {{ class }}" {{ attrs|safe }}>{{ label }}</a>
+  {% else %}
+    <button type="{{ type }}" class="ds-btn-primary {{ class }}" {{ attrs|safe }}>{{ label }}</button>
+  {% endif %}
+{% endmacro %}
+
+{% macro btn_secondary(label, href=None, type='button', class='', attrs='') %}
+  {% if href %}
+    <a href="{{ href }}" class="ds-btn-secondary {{ class }}" {{ attrs|safe }}>{{ label }}</a>
+  {% else %}
+    <button type="{{ type }}" class="ds-btn-secondary {{ class }}" {{ attrs|safe }}>{{ label }}</button>
+  {% endif %}
+{% endmacro %}
+
+{% macro btn_iris(label, href=None, type='button', class='', attrs='') %}
+  {% if href %}
+    <a href="{{ href }}" class="ds-btn-iris {{ class }}" {{ attrs|safe }}>{{ label }}</a>
+  {% else %}
+    <button type="{{ type }}" class="ds-btn-iris {{ class }}" {{ attrs|safe }}>{{ label }}</button>
+  {% endif %}
+{% endmacro %}
+
+{% macro field_class(extra='') -%}
+ds-field {{ extra }}
+{%- endmacro %}
 
 {% macro level_badge(level) %}
   {% set dots = {
@@ -35,7 +66,7 @@
     'Data Engineering': '☰', 'Python': '⌘', 'JavaScript': '{ }',
     'Web Development': '⌗', 'DevOps': '⟲', 'Cloud': '☁', 'Career Skills': '✎'
   } %}
-  <div class="card-cover cover-{{ (category or 'course') | lower | replace(' ', '-') }} relative {{ height }} w-full overflow-hidden rounded-t-[10px]">
+  <div class="card-cover cover-{{ (category or 'course') | lower | replace(' ', '-') }} relative {{ height }} w-full overflow-hidden rounded-t-card">
     {% if cover %}
       <img src="{{ cover }}"
            alt="Abstract cover artwork for {{ title }}, a {{ category }} course"
@@ -66,7 +97,7 @@
   {% set score = item.get('relevance_score') if item is mapping else None %}
   {% set instructor = item.instructor if item is not mapping else item.get('instructor') %}
 
-  <article class="group flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
+  <article class="group ds-elev-inset flex flex-col overflow-hidden rounded-card border border-ink-700/70 bg-ink-900 transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
     <a href="/product/{{ pid }}"
        class="block"
        data-track-click="{{ pid }}"
@@ -167,8 +198,8 @@
 
 
 {% macro stat(label, value, hint=None) %}
-  <div class="rounded-[10px] border border-ink-700/70 bg-ink-900 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
-    <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">{{ label }}</dt>
+  <div class="ds-elev-inset rounded-card border border-ink-700/70 bg-ink-900 p-4">
+    <dt class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">{{ label }}</dt>
     <dd class="mt-1.5 text-2xl font-bold tabular-nums text-white">{{ value }}</dd>
     {% if hint %}<p class="mt-1 text-xs text-mist-500">{{ hint }}</p>{% endif %}
   </div>
@@ -176,11 +207,11 @@
 
 
 {% macro empty_state(title, body, cta_href=None, cta_label=None) %}
-  <div class="rounded-[10px] border border-dashed border-ink-700 bg-ink-900/50 px-6 py-14 text-center">
+  <div class="rounded-card border border-dashed border-ink-700 bg-ink-900/50 px-6 py-14 text-center">
     <p class="text-base font-semibold text-mist-50">{{ title }}</p>
     <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-mist-500">{{ body }}</p>
     {% if cta_href %}
-      <a href="{{ cta_href }}" class="mt-5 inline-block rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">{{ cta_label }}</a>
+      {{ btn_primary(cta_label, href=cta_href, class='mt-5') }}
     {% endif %}
   </div>
 {% endmacro %}

@@ -50,18 +50,18 @@
 
 <!-- ================================ FILTERS =============================== -->
 <form method="get" action="/catalog" id="catalog-filters"
-      class="mt-8 rounded-[10px] border border-ink-700/70 bg-ink-900 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
+      class="ds-elev-inset mt-8 rounded-card border border-ink-700/70 bg-ink-900 p-4">
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
     <div class="lg:col-span-2">
       <label for="q" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">search</label>
       <input id="q" type="search" name="q" value="{{ filters.q }}" placeholder="e.g. langgraph agents, dbt, pytorch"
-             class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
+             class="{{ ui.field_class('mt-1.5 py-2 text-mist-200') }}">
     </div>
 
     <div>
       <label for="category" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">category</label>
       <select id="category" name="category" onchange="this.form.submit()"
-              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 outline-none transition focus:border-signal-500/60">
+              class="{{ ui.field_class('mt-1.5 py-2 text-mist-200') }}">
         <option value="">All categories</option>
         {% for category in categories %}
           <option value="{{ category }}" {{ 'selected' if filters.category == category else '' }}>{{ category }}</option>
@@ -72,7 +72,7 @@
     <div>
       <label for="skill_level" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">level</label>
       <select id="skill_level" name="skill_level" onchange="this.form.submit()"
-              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 outline-none transition focus:border-signal-500/60">
+              class="{{ ui.field_class('mt-1.5 py-2 text-mist-200') }}">
         <option value="">Any level</option>
         {% for level in skill_levels %}
           <option value="{{ level }}" {{ 'selected' if filters.skill_level == level else '' }}>{{ level | capitalize }}</option>
@@ -84,13 +84,13 @@
       <label for="max_price" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">max price</label>
       <input id="max_price" type="number" name="max_price" min="0" step="1"
              value="{{ filters.max_price if filters.max_price is not none else '' }}" placeholder="any"
-             class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60">
+             class="{{ ui.field_class('mt-1.5 py-2 text-mist-200') }}">
     </div>
   </div>
 
   <div class="mt-4 flex flex-wrap items-center gap-2.5">
-    <button type="submit" class="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">Apply filters</button>
-    <a href="/catalog" class="rounded-md border border-ink-600 px-4 py-2 text-sm font-medium text-mist-200 transition hover:border-ink-500 hover:text-white active:scale-[0.98]">Reset</a>
+    {{ ui.btn_primary('Apply filters', type='submit') }}
+    {{ ui.btn_secondary('Reset', href='/catalog') }}
 
     {# ---- Active filter chips: each × link rebuilds the querystring without that filter ---- #}
     {% set active = [] %}

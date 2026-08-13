@@ -86,13 +86,13 @@
 
         <button type="button"
                 data-cart-buy="{{ product.id }}"
-                class="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-signal-500 px-4 py-3 text-[15px] font-bold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_22px_rgba(34,201,138,.3)] active:scale-[0.98]">
+                class="ds-btn-primary mt-5 w-full py-3 text-[15px] font-bold">
           Buy now
         </button>
 
         <button type="button"
                 data-cart-add="{{ product.id }}"
-                class="cart-btn mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-950 px-4 py-2.5 text-sm font-semibold text-mist-100 transition hover:border-signal-500/50 hover:bg-ink-900 active:scale-[0.98]">
+                class="cart-btn ds-btn-secondary mt-2.5 w-full border-ink-600 bg-ink-950 py-2.5 font-semibold text-mist-100 hover:border-signal-500/50 hover:bg-ink-900">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
                   stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -106,7 +106,7 @@
                 data-save-state="unsaved"
                 data-save-label="Save for later"
                 aria-pressed="false"
-                class="save-btn save-btn--wide mt-2.5 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-700 px-4 py-2.5 text-sm font-medium text-mist-300 transition hover:border-iris-500/50 hover:text-iris-300 active:scale-[0.98]">
+                class="save-btn save-btn--wide ds-btn-secondary mt-2.5 w-full border-ink-700 py-2.5 text-mist-300 hover:border-iris-500/50 hover:text-iris-300">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
                   stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
@@ -118,7 +118,7 @@
         </p>
 
         <a href="/catalog?category={{ product.category | urlencode }}"
-           class="mt-2.5 block w-full rounded-md border border-ink-600 px-4 py-2.5 text-center text-sm font-medium text-mist-200 transition hover:border-ink-500 hover:text-white">
+           class="ds-btn-secondary mt-2.5 w-full py-2.5">
           More in {{ product.category }}
         </a>
 

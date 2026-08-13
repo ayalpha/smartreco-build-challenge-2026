@@ -12,20 +12,184 @@
    ========================================================================== */
 
 :root {
-  --canvas: #05070c;
-  --surface: #0a0e16;
-  --raised: #0f141f;
-  --line: #1e2637;
-  --line-strong: #2b3550;
+  /* Surfaces — mirror Tailwind ink.* in base.html */
+  --canvas: #05070c;       /* ink-950 */
+  --surface: #0a0e16;      /* ink-900 */
+  --raised: #0f141f;       /* ink-850 */
+  --panel: #151b29;        /* ink-800 */
+  --line: #1e2637;         /* ink-700 */
+  --line-strong: #2b3550;  /* ink-600 */
+  --line-hover: #3a465f;   /* ink-500 */
+
+  /* Brand — signal = outcome, iris = reasoning */
   --signal: #22c98a;
   --signal-bright: #4ade9a;
   --iris: #8b7cf6;
   --iris-bright: #a99ef8;
-  --glow-signal: 0 0 24px rgba(34, 201, 138, 0.14);
-  --glow-iris: 0 0 24px rgba(139, 124, 246, 0.12);
+
+  /* Elevation */
+  --elev-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --elev-2: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
+  --glow-signal: 0 0 18px rgba(34, 201, 138, 0.25);
+  --glow-signal-strong: 0 0 24px rgba(34, 201, 138, 0.32);
+  --glow-iris: 0 0 24px rgba(139, 124, 246, 0.22);
+
+  /* Radii */
+  --r-control: 6px;
+  --r-card: 10px;
+  --r-panel: 12px;
+  --r-ai: 16px;
+  --r-pill: 999px;
+
+  /* Motion — feedback / state / agent reveal */
+  --dur-feedback: 120ms;
+  --dur-state: 240ms;
+  --dur-reveal: 400ms;
+  --dur-agent: 600ms;
+  --stagger-step: 60ms;
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --------------------------------------------------------------------------
+   Design-system utility classes (shared with Jinja macros / Tailwind soup)
+   -------------------------------------------------------------------------- */
+
+.ds-elev-inset {
+  box-shadow: var(--elev-inset);
+}
+
+.ds-elev-3 {
+  box-shadow: var(--elev-3);
+}
+
+.ds-glow-signal:hover {
+  box-shadow: var(--glow-signal);
+}
+
+.ds-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--r-control);
+  background: var(--signal);
+  color: var(--canvas);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  transition: background-color var(--dur-feedback) var(--ease-standard),
+    box-shadow var(--dur-feedback) var(--ease-standard),
+    transform var(--dur-feedback) var(--ease-standard);
+}
+
+.ds-btn-primary:hover {
+  background: var(--signal-bright);
+  box-shadow: var(--glow-signal);
+}
+
+.ds-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.ds-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ds-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: #c7d0dc;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: border-color var(--dur-feedback) var(--ease-standard),
+    color var(--dur-feedback) var(--ease-standard),
+    transform var(--dur-feedback) var(--ease-standard);
+}
+
+.ds-btn-secondary:hover {
+  border-color: var(--line-hover);
+  color: #fff;
+}
+
+.ds-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.ds-btn-iris {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--r-control);
+  border: 1px solid rgba(139, 124, 246, 0.4);
+  background: rgba(139, 124, 246, 0.1);
+  color: #c7bdfc;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  transition: background-color var(--dur-feedback) var(--ease-standard),
+    transform var(--dur-feedback) var(--ease-standard);
+}
+
+.ds-btn-iris:hover {
+  background: rgba(139, 124, 246, 0.2);
+}
+
+.ds-btn-iris:active {
+  transform: scale(0.98);
+}
+
+.ds-field {
+  width: 100%;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: #f2f5fa;
+  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  outline: none;
+  transition: border-color var(--dur-feedback) var(--ease-standard),
+    box-shadow var(--dur-feedback) var(--ease-standard);
+}
+
+.ds-field::placeholder {
+  color: #7e8a9c;
+}
+
+.ds-field:focus-visible {
+  border-color: rgba(34, 201, 138, 0.6);
+  box-shadow: 0 0 0 1px rgba(34, 201, 138, 0.3);
+  outline: none;
+}
+
+.ds-field--iris:focus-visible {
+  border-color: rgba(139, 124, 246, 0.6);
+  box-shadow: 0 0 0 1px rgba(139, 124, 246, 0.3);
+  outline: none;
+}
+
+.ds-panel {
+  border-radius: var(--r-ai);
+  border: 1px solid rgba(30, 38, 55, 0.7);
+  background: var(--surface);
+  box-shadow: var(--elev-3);
+}
+
+.ds-card {
+  border-radius: var(--r-card);
+  border: 1px solid rgba(30, 38, 55, 0.7);
+  background: var(--surface);
+  box-shadow: var(--elev-inset);
 }
 
 /* --------------------------------------------------------------------------
@@ -42,7 +206,7 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 2px;
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--r-ai) var(--r-ai) 0 0;
   background: linear-gradient(90deg, var(--iris), var(--signal) 55%, transparent 92%);
   z-index: 1;
 }
@@ -54,7 +218,7 @@
 .skeleton {
   position: relative;
   overflow: hidden;
-  background-color: #151b29;
+  background-color: var(--panel);
 }
 
 .skeleton::after {
@@ -83,9 +247,9 @@
    -------------------------------------------------------------------------- */
 
 .pipe-chip {
-  transition: color 0.24s var(--ease-standard),
-    border-color 0.24s var(--ease-standard),
-    background-color 0.24s var(--ease-standard);
+  transition: color var(--dur-state) var(--ease-standard),
+    border-color var(--dur-state) var(--ease-standard),
+    background-color var(--dur-state) var(--ease-standard);
 }
 
 .pipe-chip.is-active {
@@ -119,7 +283,7 @@
 .reveal-child {
   opacity: 0;
   animation: reveal-rise 0.36s var(--ease-reveal) both;
-  animation-delay: calc(var(--stagger, 0) * 60ms);
+  animation-delay: calc(var(--stagger, 0) * var(--stagger-step));
 }
 
 @keyframes reveal-rise {
@@ -135,8 +299,8 @@
 
 /* Confidence bars sweep from zero when the disclosure opens. */
 details[open] .sig-bar > div {
-  animation: bar-fill 0.6s var(--ease-reveal) both;
-  animation-delay: calc(var(--stagger, 0) * 60ms);
+  animation: bar-fill var(--dur-agent) var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger, 0) * var(--stagger-step));
 }
 
 @keyframes bar-fill {
@@ -149,7 +313,7 @@ details[open] .sig-bar > div {
 .disclosure {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.24s var(--ease-standard);
+  transition: grid-template-rows var(--dur-state) var(--ease-standard);
 }
 
 details[open] .disclosure {
@@ -197,7 +361,7 @@ details[open] .disclosure {
 
 .card-cover {
   background-image:
-    linear-gradient(135deg, var(--c1, #151b29) 0%, var(--c2, #0a0e16) 100%),
+    linear-gradient(135deg, var(--c1, var(--panel)) 0%, var(--c2, var(--surface)) 100%),
     repeating-linear-gradient(0deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px),
     repeating-linear-gradient(90deg, transparent 0 23px, rgba(255, 255, 255, 0.025) 23px 24px);
 }
@@ -208,7 +372,7 @@ details[open] .disclosure {
   inset: 0;
   background: radial-gradient(140px 90px at 70% 20%, rgba(255, 255, 255, 0.07), transparent);
   opacity: 0;
-  transition: opacity 0.12s var(--ease-standard);
+  transition: opacity var(--dur-feedback) var(--ease-standard);
 }
 
 article:hover .card-cover::after,
@@ -234,16 +398,16 @@ a:hover .card-cover-img {
   transform: scale(1.045);
 }
 
-.cover-agentic-ai        { --c1: #123b2e; --c2: #05070c; }
-.cover-machine-learning  { --c1: #12294a; --c2: #05070c; }
-.cover-deep-learning     { --c1: #2c1b4d; --c2: #05070c; }
-.cover-data-engineering  { --c1: #0e3a3e; --c2: #05070c; }
-.cover-python            { --c1: #233a12; --c2: #05070c; }
-.cover-javascript        { --c1: #4a3a10; --c2: #05070c; }
-.cover-web-development   { --c1: #3e1b33; --c2: #05070c; }
-.cover-devops            { --c1: #3a2410; --c2: #05070c; }
-.cover-cloud             { --c1: #12303f; --c2: #05070c; }
-.cover-career-skills     { --c1: #331f3e; --c2: #05070c; }
+.cover-agentic-ai        { --c1: #123b2e; --c2: var(--canvas); }
+.cover-machine-learning  { --c1: #12294a; --c2: var(--canvas); }
+.cover-deep-learning     { --c1: #2c1b4d; --c2: var(--canvas); }
+.cover-data-engineering  { --c1: #0e3a3e; --c2: var(--canvas); }
+.cover-python            { --c1: #233a12; --c2: var(--canvas); }
+.cover-javascript        { --c1: #4a3a10; --c2: var(--canvas); }
+.cover-web-development   { --c1: #3e1b33; --c2: var(--canvas); }
+.cover-devops            { --c1: #3a2410; --c2: var(--canvas); }
+.cover-cloud             { --c1: #12303f; --c2: var(--canvas); }
+.cover-career-skills     { --c1: #331f3e; --c2: var(--canvas); }
 
 /* --------------------------------------------------------------------------
    Flash messages
@@ -349,7 +513,7 @@ a:hover .card-cover-img {
 
 .assistant-bubble {
   max-width: 85%;
-  border-radius: 12px;
+  border-radius: var(--r-panel);
   padding: 0.6rem 0.8rem;
   font-size: 13.5px;
   line-height: 1.6;
@@ -363,8 +527,8 @@ a:hover .card-cover-img {
 }
 
 .assistant-bubble--bot {
-  background: #0f141f;
-  border: 1px solid #1e2637;
+  background: var(--raised);
+  border: 1px solid var(--line);
   color: #c7d0dc;
   border-bottom-left-radius: 4px;
 }
@@ -386,7 +550,7 @@ a:hover .card-cover-img {
 .assistant-typing span {
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--iris-bright);
   animation: typing-bounce 1.15s ease-in-out infinite;
 }
@@ -507,11 +671,11 @@ a:hover .card-cover-img {
   background-color: var(--line-strong);
   border: 2px solid transparent;
   background-clip: content-box;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #3a465f;
+  background-color: var(--line-hover);
 }
 
 /* --------------------------------------------------------------------------
@@ -584,61 +748,25 @@ summary {
   }
 
   .console-line,
-  .reveal-child {
+  .reveal-child,
+  .reveal-in,
+  .card-enter {
     opacity: 1;
+    transform: none;
+    animation: none !important;
   }
 
   .pipe-chip.is-active,
   .assistant-typing span,
+  .nexora-pulse,
+  .console-caret,
   .save-burst,
-  .cart-btn.is-added,
-.save-btn.is-added {
-  border-color: rgba(34, 201, 138, 0.55);
-  background: rgba(34, 201, 138, 0.14);
-  color: var(--signal-bright);
-}
-
-/* Confirmation tick draws itself on the success screen. */
-.success-check {
-  animation: success-pop 0.5s var(--ease-reveal) both;
-}
-
-.success-tick {
-  stroke-dasharray: 30;
-  stroke-dashoffset: 30;
-  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
-}
-
-@keyframes success-pop {
-  0%   { transform: scale(0.7); opacity: 0; }
-  60%  { transform: scale(1.06); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-@keyframes tick-draw {
-  to { stroke-dashoffset: 0; }
-}
-
-/* Brand mark: the node pulses gently, matching the "agent online" language. */
-.nexora-pulse {
-  animation: mark-pulse 2.6s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@keyframes mark-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
-/* Staggered card entrance on grid pages. */
-.card-enter {
-  opacity: 0;
-  animation: reveal-rise 0.42s var(--ease-reveal) both;
-  animation-delay: calc(var(--stagger, 0) * 45ms);
-}
-
-.saved-pop {
-    animation: none;
+  .saved-pop,
+  .success-check,
+  .success-tick,
+  .flash-message,
+  .flash-out {
+    animation: none !important;
   }
 
   .assistant-panel {
@@ -647,10 +775,18 @@ summary {
     transform: none;
   }
 
+  .assistant-panel:not(.is-open) {
+    opacity: 0;
+  }
+
   .card-cover-img,
   article:hover .card-cover-img,
   a:hover .card-cover-img {
     transform: none;
+  }
+
+  details[open] .sig-bar > div {
+    animation: none !important;
   }
 }
 
