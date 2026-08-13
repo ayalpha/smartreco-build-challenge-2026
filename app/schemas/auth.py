@@ -67,6 +67,7 @@ class UserOut(BaseModel):
     is_active: bool
     digest_opt_in: bool
     preferred_skill_level: Optional[str] = None
+    career_goal: Optional[str] = None
     created_at: Optional[datetime] = None
 
     @field_validator("role", mode="before")

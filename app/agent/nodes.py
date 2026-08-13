@@ -477,6 +477,43 @@ def _heuristic_interests(
     return signals, query
 
 
+def _merge_career_goal(
+    signals: list[dict[str, Any]],
+    query: str,
+    career_goal: Optional[str],
+) -> tuple[list[dict[str, Any]], str]:
+    """Ensure a stated Path career goal is represented in signals and the query.
+
+    Used after Mesh interest extraction so a user who set a goal on ``/path``
+    is not ignored when the model only restates recent click topics.
+    """
+    goal = (career_goal or "").strip()
+    if not goal:
+        return signals, query
+
+    goal_l = goal.lower()
+    already = any(goal_l in str(s.get("topic", "")).lower() for s in signals)
+    merged = list(signals)
+    if not already:
+        merged.insert(
+            0,
+            {
+                "topic": goal[:80],
+                "confidence": 0.9,
+                "evidence": "Stated career goal from the Path builder.",
+            },
+        )
+        merged = merged[:5]
+
+    if goal_l not in (query or "").lower():
+        query = (
+            f"{query} The learner's stated career goal is {goal!r}."
+            if query
+            else f"Courses that help progress toward: {goal}."
+        )
+    return merged, query
+
+
 @instrumented(NODE_INTEREST_EXTRACTOR)
 def interest_extractor(state: RecommendationState) -> dict[str, Any]:
     """Turn the behaviour digest into interest signals, a query and filters.
@@ -572,6 +609,7 @@ def interest_extractor(state: RecommendationState) -> dict[str, Any]:
         signals = signals[:5] or heuristic_signals
 
         query = str(payload.get("retrieval_query") or "").strip() or heuristic_query
+        signals, query = _merge_career_goal(signals, query, career_goal)
 
         levels = [
             str(level).lower()

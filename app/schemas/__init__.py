@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserOut
 from app.schemas.event import EventBatchIn, EventBatchResponse, EventIn, EventOut
+from app.schemas.path import PathOut, PathRequest, PathStepOut
 from app.schemas.product import (
     ProductCreate,
     ProductListResponse,
@@ -25,6 +26,9 @@ __all__ = [
     "EventOut",
     "InterestSignalOut",
     "LoginRequest",
+    "PathOut",
+    "PathRequest",
+    "PathStepOut",
     "ProductCreate",
     "ProductListResponse",
     "ProductOut",

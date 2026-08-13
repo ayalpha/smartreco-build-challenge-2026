@@ -143,3 +143,42 @@ def test_heuristic_interests_include_career_goal() -> None:
     )
     assert any("staff ML engineer" in s["topic"] for s in signals)
     assert "staff ML engineer" in query
+
+
+def test_merge_career_goal_into_mesh_signals() -> None:
+    """Mesh interest output should still surface a Path career goal."""
+    from app.agent.nodes import _merge_career_goal
+
+    signals, query = _merge_career_goal(
+        [{"topic": "python", "confidence": 0.7, "evidence": "clicks"}],
+        "A course about python tooling",
+        "Become an AI platform engineer",
+    )
+    assert signals[0]["topic"] == "Become an AI platform engineer"
+    assert "AI platform engineer" in query
+    # Idempotent when already present.
+    again, q2 = _merge_career_goal(signals, query, "Become an AI platform engineer")
+    assert sum(1 for s in again if "AI platform" in s["topic"]) == 1
+    assert q2 == query
+
+
+def test_nav_includes_path_link(client) -> None:
+    """Global navigation exposes the Path option to every visitor."""
+    response = client.get("/", headers={"Accept": "text/html"})
+    assert response.status_code == 200
+    assert 'href="/path"' in response.text
+    assert ">Path<" in response.text or "Build a path" in response.text
+
+
+def test_path_page_prefills_saved_goal(client, auth_headers, user, db) -> None:
+    """GET /path should show the learner's stored career goal."""
+    user.career_goal = "Become a full-stack engineer"
+    db.add(user)
+    db.commit()
+
+    response = client.get(
+        "/path",
+        headers={**auth_headers, "Accept": "text/html"},
+    )
+    assert response.status_code == 200
+    assert "Become a full-stack engineer" in response.text
