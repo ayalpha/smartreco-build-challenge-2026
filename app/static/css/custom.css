@@ -308,6 +308,32 @@ a:hover .card-cover-img {
   display: none !important;
 }
 
+.assistant-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  background: rgba(5, 7, 12, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.22s var(--ease-enter), visibility 0s linear 0.22s;
+}
+
+.assistant-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.22s var(--ease-enter), visibility 0s;
+}
+
+.assistant-backdrop[hidden] {
+  display: none !important;
+}
+
+html.assistant-open {
+  overflow: hidden;
+}
+
 .assistant-panel {
   opacity: 0;
   pointer-events: none;
@@ -316,6 +342,7 @@ a:hover .card-cover-img {
   transform-origin: bottom right;
   transition: opacity 0.22s var(--ease-enter), transform 0.22s var(--ease-enter),
     visibility 0s linear 0.22s;
+  z-index: 50;
 }
 
 .assistant-panel.is-open {
@@ -565,6 +592,16 @@ summary {
   outline-offset: 2px;
 }
 
+/* Stretched card link: one focusable product link covering the card face.
+   Interactive siblings (save/cart) sit at z-index 10 inside an isolated stacking
+   context so they remain clickable and keyboard-reachable. */
+.card-stretched-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
 /* --------------------------------------------------------------------------
    Accessibility: honour a user's reduced-motion preference
    -------------------------------------------------------------------------- */
@@ -583,66 +620,41 @@ summary {
     display: none;
   }
 
+  /* Final visible states — never leave content at opacity 0 waiting on motion. */
   .console-line,
-  .reveal-child {
+  .reveal-child,
+  .card-enter,
+  .reveal-in,
+  .assistant-msg {
     opacity: 1;
+    transform: none;
+    animation: none !important;
   }
 
   .pipe-chip.is-active,
   .assistant-typing span,
-  .save-burst,
-  .cart-btn.is-added,
-.save-btn.is-added {
-  border-color: rgba(34, 201, 138, 0.55);
-  background: rgba(34, 201, 138, 0.14);
-  color: var(--signal-bright);
-}
-
-/* Confirmation tick draws itself on the success screen. */
-.success-check {
-  animation: success-pop 0.5s var(--ease-reveal) both;
-}
-
-.success-tick {
-  stroke-dasharray: 30;
-  stroke-dashoffset: 30;
-  animation: tick-draw 0.5s var(--ease-reveal) 0.22s forwards;
-}
-
-@keyframes success-pop {
-  0%   { transform: scale(0.7); opacity: 0; }
-  60%  { transform: scale(1.06); opacity: 1; }
-  100% { transform: scale(1); }
-}
-
-@keyframes tick-draw {
-  to { stroke-dashoffset: 0; }
-}
-
-/* Brand mark: the node pulses gently, matching the "agent online" language. */
-.nexora-pulse {
-  animation: mark-pulse 2.6s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@keyframes mark-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-
-/* Staggered card entrance on grid pages. */
-.card-enter {
-  opacity: 0;
-  animation: reveal-rise 0.42s var(--ease-reveal) both;
-  animation-delay: calc(var(--stagger, 0) * 45ms);
-}
-
-.saved-pop {
-    animation: none;
+  .nexora-pulse,
+  .console-caret {
+    animation: none !important;
   }
 
+  .save-burst,
+  .saved-pop,
+  .success-check,
+  .success-tick {
+    animation: none !important;
+  }
+
+  .success-tick {
+    stroke-dashoffset: 0;
+  }
+
+  /* Keep closed-panel hide rules; only drop transition cost when open. */
   .assistant-panel {
-    transition: none;
+    transition: none !important;
+  }
+
+  .assistant-panel.is-open {
     opacity: 1;
     transform: none;
   }

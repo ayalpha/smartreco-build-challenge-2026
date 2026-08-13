@@ -47,8 +47,9 @@
         <span class="cover-glyph select-none text-5xl opacity-25" aria-hidden="true">{{ glyphs.get(category, '◇') }}</span>
       </span>
     {% endif %}
-    <span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/10 to-transparent"></span>
-    <span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/75">{{ category }}</span>
+    <span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/90 via-ink-950/25 to-transparent"></span>
+    {# Solid scrim under label so category stays readable on light cover art. #}
+    <span class="absolute bottom-2.5 left-3 rounded bg-ink-950/70 px-1.5 py-0.5 font-mono text-[10px] lowercase tracking-[0.18em] text-white">{{ category }}</span>
   </div>
 {% endmacro %}
 
@@ -66,24 +67,22 @@
   {% set score = item.get('relevance_score') if item is mapping else None %}
   {% set instructor = item.instructor if item is not mapping else item.get('instructor') %}
 
-  <article class="group flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
-    <a href="/product/{{ pid }}"
-       class="block"
-       data-track-click="{{ pid }}"
-       data-track-source="{{ source }}"
-       {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+  {# One primary link (title + stretched hit area). Save/cart stay separate controls.
+     `isolate` + z-10 on actions keeps buttons above the stretched ::after hit layer. #}
+  <article class="group relative isolate flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">
+    <div class="pointer-events-none" aria-hidden="true">
       {{ thumbnail(item) }}
-    </a>
+    </div>
 
     <div class="flex flex-1 flex-col gap-3 p-4">
       <div class="flex items-center justify-between gap-2">
-        <span class="truncate font-mono text-[10px] lowercase tracking-[0.15em] text-signal-400/80">{{ category }}</span>
+        <span class="truncate font-mono text-[10px] lowercase tracking-[0.15em] text-signal-400">{{ category }}</span>
         {{ level_badge(level) }}
       </div>
 
       <h3 class="line-clamp-2 min-h-[2.75rem] text-[16px] font-semibold leading-snug tracking-[-0.01em] text-white">
         <a href="/product/{{ pid }}"
-           class="transition hover:text-signal-400"
+           class="card-stretched-link transition hover:text-signal-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-500"
            data-track-click="{{ pid }}"
            data-track-source="{{ source }}"
            {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
@@ -92,14 +91,14 @@
       </h3>
 
       {% if show_pitch and pitch %}
-        <p class="rounded-lg border-l-2 border-iris-500/70 bg-iris-500/[0.06] px-3 py-2 text-[13px] italic leading-relaxed text-iris-300/90">
+        <p class="relative z-10 rounded-lg border-l-2 border-iris-500/70 bg-iris-500/[0.06] px-3 py-2 text-[13px] italic leading-relaxed text-iris-300/90">
           {{ pitch }}
         </p>
       {% elif description %}
-        <p class="line-clamp-2 text-[13px] leading-relaxed text-mist-400">{{ description }}</p>
+        <p class="relative z-10 line-clamp-2 text-[13px] leading-relaxed text-mist-400">{{ description }}</p>
       {% endif %}
 
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div class="relative z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         {% if instructor %}
           <span class="flex min-w-0 items-center gap-1.5">
             <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-800 font-mono text-[9px] font-bold text-mist-300 ring-1 ring-ink-700">
@@ -111,10 +110,10 @@
         {% if rating %}{{ stars(rating) }}{% endif %}
       </div>
 
-      <div class="mt-auto flex items-end justify-between gap-3 border-t border-ink-800 pt-3">
+      <div class="relative z-10 mt-auto flex items-end justify-between gap-3 border-t border-ink-800 pt-3">
         <div class="space-y-1">
           <p class="text-[17px] font-bold tracking-[-0.01em] text-white">{{ price | money }}</p>
-          <p class="flex items-center gap-2 font-mono text-[10px] text-mist-500">
+          <p class="flex items-center gap-2 font-mono text-[10px] text-mist-400">
             {% if duration %}<span>{{ duration }}</span>{% endif %}
             {% if score is not none %}<span title="agent relevance score">rel {{ '%.2f' | format(score|float) }}</span>{% endif %}
           </p>
@@ -126,7 +125,7 @@
                   data-save-state="unsaved"
                   aria-pressed="false"
                   aria-label="Save {{ title }} for later"
-                  class="save-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
+                  class="save-btn relative z-10 grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
                     stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -135,20 +134,16 @@
           <button type="button"
                   data-cart-add="{{ pid }}"
                   aria-label="Add {{ title }} to cart"
-                  class="cart-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
+                  class="cart-btn relative z-10 grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
                     stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <a href="/product/{{ pid }}"
-             class="grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
-             aria-label="View {{ title }}"
-             data-track-click="{{ pid }}"
-             data-track-source="{{ source }}"
-             {% if recommendation_id %}data-track-recommendation="{{ recommendation_id }}"{% endif %}>
+          <span class="grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
+                aria-hidden="true">
             →
-          </a>
+          </span>
         </div>
       </div>
     </div>
@@ -156,9 +151,10 @@
 {% endmacro %}
 
 
-{% macro confidence_bar(value, stagger=0) %}
+{% macro confidence_bar(value, stagger=0, label='Confidence') %}
   {% set pct = ((value | float) * 100) | round | int %}
   <div class="sig-bar h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter"
+       aria-label="{{ label }}"
        aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"
        style="--stagger: {{ stagger }}">
     <div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400" style="width: {{ pct }}%"></div>
@@ -168,7 +164,7 @@
 
 {% macro stat(label, value, hint=None) %}
   <div class="rounded-[10px] border border-ink-700/70 bg-ink-900 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
-    <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-500">{{ label }}</dt>
+    <dt class="font-mono text-[10px] uppercase tracking-[0.15em] text-mist-400">{{ label }}</dt>
     <dd class="mt-1.5 text-2xl font-bold tabular-nums text-white">{{ value }}</dd>
     {% if hint %}<p class="mt-1 text-xs text-mist-500">{{ hint }}</p>{% endif %}
   </div>
@@ -206,10 +202,12 @@
   any size and inherits the theme. The glyph is an "N" cut from a hexagonal
   node: a nod to the agent's graph, and readable at 20px.
 --------------------------------------------------------------------------- #}
-{% macro logo(size=32, wordmark=true) %}
+{% macro logo(size=32, wordmark=true, labelled=true) %}
 <span class="flex shrink-0 items-center gap-2.5">
+  {# When nested in a link that already names the home control, omit SVG label. #}
   <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 40 40" fill="none"
-       class="nexora-mark shrink-0" role="img" aria-label="Nexora">
+       class="nexora-mark shrink-0"
+       {% if labelled %}role="img" aria-label="Nexora"{% else %}aria-hidden="true"{% endif %}>
     <defs>
       <linearGradient id="nx-g" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="#4ADE9A"/>
@@ -224,7 +222,7 @@
     <circle class="nexora-pulse" cx="25.6" cy="12.8" r="2.7" fill="#4ADE9A"/>
   </svg>
   {% if wordmark %}
-    <span class="flex flex-col leading-none">
+    <span class="flex flex-col leading-none" {% if not labelled %}aria-hidden="true"{% endif %}>
       <span class="text-[16px] font-extrabold tracking-[-0.03em] text-white">Nexora</span>
       <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.2em] text-mist-500 sm:block">by ay systum</span>
     </span>

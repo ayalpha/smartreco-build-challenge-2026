@@ -42,8 +42,9 @@
           <input id="ck-email" name="email" type="email" autocomplete="email" required
                  value="{{ current_user.email if current_user else '' }}"
                  placeholder="you@example.com"
+                 aria-describedby="ck-email-error"
                  class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-          <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+          <p id="ck-email-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
         </div>
       </fieldset>
 
@@ -59,8 +60,9 @@
             <label for="ck-name" class="block text-sm font-medium text-mist-200">Name on card</label>
             <input id="ck-name" name="name" type="text" autocomplete="cc-name" required
                    placeholder="Ada Lovelace"
+                   aria-describedby="ck-name-error"
                    class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-            <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+            <p id="ck-name-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
           </div>
 
           <div>
@@ -68,10 +70,11 @@
             <div class="relative mt-1.5">
               <input id="ck-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number"
                      required maxlength="23" placeholder="4242 4242 4242 4242"
+                     aria-describedby="ck-card-error"
                      class="ck-field w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 pr-16 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
               <span id="ck-brand" class="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-wider text-mist-500"></span>
             </div>
-            <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+            <p id="ck-card-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
@@ -79,15 +82,17 @@
               <label for="ck-expiry" class="block text-sm font-medium text-mist-200">Expiry</label>
               <input id="ck-expiry" name="expiry" type="text" inputmode="numeric" autocomplete="cc-exp"
                      required maxlength="5" placeholder="MM/YY"
+                     aria-describedby="ck-expiry-error"
                      class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-              <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+              <p id="ck-expiry-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
             </div>
             <div>
               <label for="ck-cvv" class="block text-sm font-medium text-mist-200">CVV</label>
               <input id="ck-cvv" name="cvv" type="text" inputmode="numeric" autocomplete="cc-csc"
                      required maxlength="4" placeholder="123"
+                     aria-describedby="ck-cvv-error"
                      class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 font-mono text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-              <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+              <p id="ck-cvv-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
             </div>
           </div>
         </div>
@@ -105,23 +110,26 @@
             <label for="ck-address" class="block text-sm font-medium text-mist-200">Address</label>
             <input id="ck-address" name="address" type="text" autocomplete="street-address" required
                    placeholder="12 Kingsway"
+                   aria-describedby="ck-address-error"
                    class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-            <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+            <p id="ck-address-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
           </div>
           <div class="grid gap-4 sm:grid-cols-3">
             <div class="sm:col-span-1">
               <label for="ck-city" class="block text-sm font-medium text-mist-200">City</label>
               <input id="ck-city" name="city" type="text" autocomplete="address-level2" required
                      placeholder="London"
+                     aria-describedby="ck-city-error"
                      class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-              <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+              <p id="ck-city-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
             </div>
             <div>
               <label for="ck-postcode" class="block text-sm font-medium text-mist-200">Postcode</label>
               <input id="ck-postcode" name="postcode" type="text" autocomplete="postal-code" required
                      placeholder="WC2B 6UN"
+                     aria-describedby="ck-postcode-error"
                      class="ck-field mt-1.5 w-full rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-sm text-mist-50 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
-              <p class="ck-error mt-1.5 hidden text-xs text-rose-300"></p>
+              <p id="ck-postcode-error" class="ck-error mt-1.5 hidden text-xs text-rose-300" role="alert"></p>
             </div>
             <div>
               <label for="ck-country" class="block text-sm font-medium text-mist-200">Country</label>

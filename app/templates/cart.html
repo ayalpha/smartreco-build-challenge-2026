@@ -125,15 +125,16 @@
         '</div>' +
         '<div class="flex items-center gap-4">' +
           '<div class="flex items-center rounded-md border border-ink-700">' +
-            '<button type="button" data-qty-dec="' + line.id + '" aria-label="Decrease quantity" ' +
-              'class="grid h-8 w-8 place-items-center text-mist-400 transition hover:text-white">−</button>' +
-            '<span class="w-8 text-center font-mono text-sm tabular-nums text-mist-100">' + line.qty + '</span>' +
-            '<button type="button" data-qty-inc="' + line.id + '" aria-label="Increase quantity" ' +
-              'class="grid h-8 w-8 place-items-center text-mist-400 transition hover:text-white">+</button>' +
+            '<button type="button" data-qty-dec="' + line.id + '" aria-label="Decrease quantity of ' + esc(line.title) + '" ' +
+              'class="grid h-10 w-10 place-items-center text-mist-400 transition hover:text-white">−</button>' +
+            '<span class="w-10 text-center font-mono text-sm tabular-nums text-mist-100" aria-live="polite" aria-atomic="true">' +
+              '<span class="sr-only">Quantity </span>' + line.qty + '</span>' +
+            '<button type="button" data-qty-inc="' + line.id + '" aria-label="Increase quantity of ' + esc(line.title) + '" ' +
+              'class="grid h-10 w-10 place-items-center text-mist-400 transition hover:text-white">+</button>' +
           '</div>' +
           '<span class="w-20 text-right font-bold tabular-nums text-white">' + cart.money(line.lineTotal) + '</span>' +
           '<button type="button" data-cart-remove="' + line.id + '" aria-label="Remove ' + esc(line.title) + '" ' +
-            'class="grid h-8 w-8 place-items-center rounded-md border border-ink-700 text-mist-500 transition hover:border-rose-500/40 hover:text-rose-300">✕</button>' +
+            'class="grid h-10 w-10 place-items-center rounded-md border border-ink-700 text-mist-500 transition hover:border-rose-500/40 hover:text-rose-300">✕</button>' +
         '</div>' +
       '</li>';
     }

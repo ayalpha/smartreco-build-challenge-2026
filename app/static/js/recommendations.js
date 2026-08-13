@@ -283,17 +283,17 @@
     const media =
       '<div class="card-cover ' + coverClass + ' relative h-36 w-full overflow-hidden rounded-t-[10px]">' +
         cover +
-        '<span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/85 via-ink-950/10 to-transparent"></span>' +
-        '<span class="absolute bottom-2.5 left-3 font-mono text-[10px] lowercase tracking-[0.18em] text-white/75">' +
+        '<span class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/90 via-ink-950/25 to-transparent"></span>' +
+        '<span class="absolute bottom-2.5 left-3 rounded bg-ink-950/70 px-1.5 py-0.5 font-mono text-[10px] lowercase tracking-[0.18em] text-white">' +
           escapeHtml(category) + '</span>' +
       '</div>';
 
     const pitch = product.pitch || product.reason;
     const pitchBlock = pitch
-      ? '<p class="rounded-lg border-l-2 border-iris-500/70 bg-iris-500/[0.06] px-3 py-2 text-[13px] italic leading-relaxed text-iris-300/90">' +
+      ? '<p class="relative z-10 rounded-lg border-l-2 border-iris-500/70 bg-iris-500/[0.06] px-3 py-2 text-[13px] italic leading-relaxed text-iris-300/90">' +
         escapeHtml(pitch) + '</p>'
-      : '<p class="line-clamp-2 text-[13px] leading-relaxed text-mist-400">' +
-        escapeHtml(product.description) + '</p>';
+      : '<p class="relative z-10 line-clamp-2 text-[13px] leading-relaxed text-mist-400">' +
+        escapeHtml(product.description || '') + '</p>';
 
     const meta = [];
     if (product.duration) meta.push('<span>' + escapeHtml(product.duration) + '</span>');
@@ -305,28 +305,27 @@
     }
 
     return (
-      '<article class="group flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">' +
-        '<a href="/product/' + id + '" class="block" ' + trackAttrs + '>' + media + '</a>' +
+      '<article class="group relative isolate flex flex-col overflow-hidden rounded-[10px] border border-ink-700/70 bg-ink-900 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] transition duration-150 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-xl hover:shadow-black/40">' +
+        '<div class="pointer-events-none" aria-hidden="true">' + media + '</div>' +
         '<div class="flex flex-1 flex-col gap-3 p-4">' +
           '<div class="flex items-center justify-between gap-2">' +
-            '<span class="truncate font-mono text-[10px] lowercase tracking-[0.15em] text-signal-400/80">' +
+            '<span class="truncate font-mono text-[10px] lowercase tracking-[0.15em] text-signal-400">' +
               escapeHtml(category) + '</span>' +
             '<span class="inline-flex items-center gap-1.5 font-mono text-[10px] lowercase tracking-wide text-mist-400">' +
               '<span class="h-1.5 w-1.5 rounded-full ' + levelDot(product.skill_level) + '" aria-hidden="true"></span>' +
               escapeHtml(product.skill_level) + '</span>' +
           '</div>' +
           '<h3 class="text-[16px] font-semibold leading-snug tracking-[-0.01em] text-white">' +
-            '<a href="/product/' + id + '" class="transition hover:text-signal-400" ' + trackAttrs + '>' +
+            '<a href="/product/' + id + '" class="card-stretched-link transition hover:text-signal-400" ' + trackAttrs + '>' +
               escapeHtml(product.title) + '</a>' +
           '</h3>' +
           pitchBlock +
-          '<div class="mt-auto flex items-end justify-between gap-3 pt-1">' +
+          '<div class="relative z-10 mt-auto flex items-end justify-between gap-3 pt-1">' +
             '<div class="space-y-1">' +
               '<p class="text-base font-bold text-white">' + formatPrice(product.price) + '</p>' +
-              '<p class="flex items-center gap-2 font-mono text-[10px] text-mist-500">' + meta.join('') + '</p>' +
+              '<p class="flex items-center gap-2 font-mono text-[10px] text-mist-400">' + meta.join('') + '</p>' +
             '</div>' +
-            '<a href="/product/' + id + '" class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300" aria-label="View ' +
-              escapeHtml(product.title) + '" ' + trackAttrs + '>→</a>' +
+            '<span class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300" aria-hidden="true">→</span>' +
           '</div>' +
         '</div>' +
       '</article>'
@@ -347,7 +346,8 @@
           '<p class="font-mono text-sm font-medium lowercase text-mist-50">' + escapeHtml(signal.topic) + '</p>' +
           '<p class="font-mono text-[11px] tabular-nums text-signal-400">' + confidence + '%</p>' +
         '</div>' +
-        '<div class="sig-bar mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter" aria-valuenow="' + confidence + '" aria-valuemin="0" aria-valuemax="100" style="--stagger: ' + index + '">' +
+        '<div class="sig-bar mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter" aria-label="Confidence for ' +
+          escapeHtml(signal.topic) + '" aria-valuenow="' + confidence + '" aria-valuemin="0" aria-valuemax="100" style="--stagger: ' + index + '">' +
           '<div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400" style="width: ' + confidence + '%"></div>' +
         '</div>' +
         (signal.evidence

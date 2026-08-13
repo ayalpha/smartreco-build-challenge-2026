@@ -53,13 +53,13 @@
       class="mt-8 rounded-[10px] border border-ink-700/70 bg-ink-900 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]">
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
     <div class="lg:col-span-2">
-      <label for="q" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">search</label>
+      <label for="q" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-400">search</label>
       <input id="q" type="search" name="q" value="{{ filters.q }}" placeholder="e.g. langgraph agents, dbt, pytorch"
              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60 focus:ring-1 focus:ring-signal-500/30">
     </div>
 
     <div>
-      <label for="category" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">category</label>
+      <label for="category" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-400">category</label>
       <select id="category" name="category" onchange="this.form.submit()"
               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 outline-none transition focus:border-signal-500/60">
         <option value="">All categories</option>
@@ -70,7 +70,7 @@
     </div>
 
     <div>
-      <label for="skill_level" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">level</label>
+      <label for="skill_level" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-400">level</label>
       <select id="skill_level" name="skill_level" onchange="this.form.submit()"
               class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 outline-none transition focus:border-signal-500/60">
         <option value="">Any level</option>
@@ -81,7 +81,7 @@
     </div>
 
     <div>
-      <label for="max_price" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">max price</label>
+      <label for="max_price" class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-400">max price</label>
       <input id="max_price" type="number" name="max_price" min="0" step="1"
              value="{{ filters.max_price if filters.max_price is not none else '' }}" placeholder="any"
              class="mt-1.5 w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-200 placeholder-mist-500 outline-none transition focus:border-signal-500/60">
@@ -134,27 +134,28 @@
     {% if filters.max_price is not none %}{% set _ = qs.append('max_price=' ~ filters.max_price) %}{% endif %}
     {% set base_qs = ('&' ~ qs | join('&')) if qs else '' %}
 
-    <nav class="mt-10 flex items-center justify-center gap-1.5" aria-label="Pagination">
+    <nav class="mt-10 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pagination">
       {% if page > 1 %}
         <a href="/catalog?page={{ page - 1 }}{{ base_qs }}"
-           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">← Prev</a>
+           class="min-h-10 rounded-md border border-ink-700 px-3 py-2 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">← Prev</a>
       {% endif %}
 
       {% for number in range(1, pages + 1) %}
         {% if number == 1 or number == pages or (number >= page - 1 and number <= page + 1) %}
           <a href="/catalog?page={{ number }}{{ base_qs }}"
-             class="min-w-[2.25rem] rounded-md px-3 py-1.5 text-center text-sm transition
+             {% if number == page %}aria-current="page"{% endif %}
+             class="inline-flex min-h-10 min-w-[2.5rem] items-center justify-center rounded-md px-3 py-2 text-center text-sm transition
                     {% if number == page %}bg-signal-500 font-semibold text-ink-950{% else %}border border-ink-700 text-mist-200 hover:border-ink-500 hover:text-white{% endif %}">
             {{ number }}
           </a>
         {% elif number == page - 2 or number == page + 2 %}
-          <span class="px-1 text-mist-500">…</span>
+          <span class="px-1 text-mist-500" aria-hidden="true">…</span>
         {% endif %}
       {% endfor %}
 
       {% if page < pages %}
         <a href="/catalog?page={{ page + 1 }}{{ base_qs }}"
-           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">Next →</a>
+           class="min-h-10 rounded-md border border-ink-700 px-3 py-2 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">Next →</a>
       {% endif %}
     </nav>
   {% endif %}

@@ -44,8 +44,8 @@
             mist: {
               50:  '#F2F5FA',  // primary text      16.9:1 on ink-900
               200: '#C7D0DC',  // strong secondary  11.2:1
-              400: '#98A4B5',  // secondary          6.9:1
-              500: '#7E8A9C',  // muted floor        5.0:1
+              400: '#98A4B5',  // secondary / labels 6.9:1 (prefer for small chrome)
+              500: '#8B96A8',  // muted floor        ~5.5:1 on ink-900
             },
             signal: {
               300: '#7DF0BC', 400: '#4ADE9A', 500: '#22C98A', 600: '#12A16C',
@@ -73,7 +73,7 @@
 <header class="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-950/85 backdrop-blur-md">
   <nav class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:px-8">
     <a href="/" class="group flex shrink-0 items-center" aria-label="Nexora home">
-      {{ ui.logo(32) }}
+      {{ ui.logo(32, true, false) }}
     </a>
 
     {% set nav_items = [('/', 'Nexora'), ('/catalog', 'Catalog'), ('/architecture', 'How it works')] %}
@@ -126,11 +126,13 @@
       </a>
 
       {% if current_user %}
-        <a href="/profile" class="flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-mist-200 transition hover:border-ink-600 hover:text-white sm:px-3">
-          <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 text-[10px] font-bold text-signal-400">
+        <a href="/profile"
+           aria-label="Profile: {{ current_user.display_name }}"
+           class="flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sm text-mist-200 transition hover:border-ink-600 hover:text-white sm:px-3">
+          <span class="grid h-5 w-5 place-items-center rounded-full bg-signal-500/20 text-[10px] font-bold text-signal-400" aria-hidden="true">
             {{ current_user.display_name[0] | upper }}
           </span>
-          <span class="hidden max-w-[9rem] truncate sm:inline">{{ current_user.display_name }}</span>
+          <span class="hidden max-w-[9rem] truncate sm:inline" aria-hidden="true">{{ current_user.display_name }}</span>
         </a>
         <form action="/logout" method="post" class="hidden sm:block">
           <button type="submit" class="rounded-md px-3 py-1.5 text-sm text-mist-400 transition hover:text-white">Sign out</button>
@@ -142,8 +144,9 @@
 
       {# ---- Mobile menu: <details> disclosure — no JS, natively keyboard-accessible ---- #}
       <details class="relative md:hidden" id="mobile-menu">
-        <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-200 transition hover:border-ink-600 [&::-webkit-details-marker]:hidden"
-                 aria-label="Open menu">
+        <summary class="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-md border border-ink-700 bg-ink-900 text-mist-200 transition hover:border-ink-600 [&::-webkit-details-marker]:hidden"
+                 aria-label="Open menu"
+                 data-menu-summary>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
@@ -280,24 +283,52 @@
 <script src="/static/js/saved.js" defer></script>
 <script src="/static/js/cart.js" defer></script>
 <script>
-  // Flash auto-dismiss: fade out after 6s, pause the timer while hovered.
+  // Flash auto-dismiss: fade out after 6s; pause while hovered or focused.
   (function () {
     document.querySelectorAll('.flash-message').forEach(function (el) {
-      var remaining = 6000, start = Date.now(), timer;
+      var remaining = 6000, start = Date.now(), timer, paused = false;
       function arm() {
+        if (paused) return;
         start = Date.now();
         timer = window.setTimeout(function () {
           el.classList.add('flash-out');
           window.setTimeout(function () { el.remove(); }, 300);
         }, remaining);
       }
-      el.addEventListener('mouseenter', function () {
+      function pause() {
+        if (paused) return;
+        paused = true;
         window.clearTimeout(timer);
-        remaining -= Date.now() - start;
+        remaining = Math.max(0, remaining - (Date.now() - start));
+      }
+      function resume() {
+        if (!paused) return;
+        // Keep paused if focus remains inside the flash (e.g. dismiss button).
+        if (el.contains(document.activeElement) || el.matches(':hover')) return;
+        paused = false;
+        arm();
+      }
+      el.addEventListener('mouseenter', pause);
+      el.addEventListener('mouseleave', resume);
+      el.addEventListener('focusin', pause);
+      el.addEventListener('focusout', function () {
+        window.setTimeout(resume, 0);
       });
-      el.addEventListener('mouseleave', arm);
       arm();
     });
+
+    // Mobile menu: keep summary label in sync with open/closed state.
+    var menu = document.getElementById('mobile-menu');
+    if (menu) {
+      var summary = menu.querySelector('[data-menu-summary]');
+      function syncMenuLabel() {
+        if (!summary) return;
+        summary.setAttribute('aria-label', menu.open ? 'Close menu' : 'Open menu');
+        summary.setAttribute('aria-expanded', menu.open ? 'true' : 'false');
+      }
+      menu.addEventListener('toggle', syncMenuLabel);
+      syncMenuLabel();
+    }
   })();
 </script>
 {% block scripts %}{% endblock %}

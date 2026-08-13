@@ -145,8 +145,19 @@
     input.classList.toggle('border-rose-500/60', bad);
     input.setAttribute('aria-invalid', bad ? 'true' : 'false');
     if (node) {
+      if (!node.id && input.id) {
+        node.id = input.id + '-error';
+      }
+      if (node.id) {
+        input.setAttribute('aria-describedby', node.id);
+      }
       node.textContent = message || '';
       node.classList.toggle('hidden', !bad);
+      if (bad) {
+        node.setAttribute('role', 'alert');
+      } else {
+        node.removeAttribute('role');
+      }
     }
     return !bad;
   }
