@@ -21,31 +21,57 @@
     </p>
 
     {% if current_user %}
-    <form method="post" action="/path" class="mt-8 grid gap-3 sm:grid-cols-[1fr,150px,auto]">
-      <div>
-        <label class="sr-only" for="goal">Career or skill goal</label>
-        <input id="goal" name="goal" required minlength="3" maxlength="160"
-               value="{{ goal }}"
-               placeholder="e.g. Become an AI platform engineer"
-               autocomplete="off"
-               class="w-full rounded-lg border border-ink-600 bg-ink-950 px-4 py-3 text-white outline-none transition placeholder:text-mist-500 focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
+    <form method="post" action="/path" class="mt-8 space-y-3" id="path-form">
+      <div class="grid gap-3 sm:grid-cols-[1fr,150px,auto]">
+        <div>
+          <label class="sr-only" for="goal">Career or skill goal</label>
+          <input id="goal" name="goal" required minlength="3" maxlength="160"
+                 value="{{ goal }}"
+                 placeholder="e.g. Become an AI platform engineer"
+                 autocomplete="off"
+                 class="w-full rounded-lg border border-ink-600 bg-ink-950 px-4 py-3 text-white outline-none transition placeholder:text-mist-500 focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
+        </div>
+        <div>
+          <label class="sr-only" for="weekly_hours">Hours per week</label>
+          <select id="weekly_hours" name="weekly_hours"
+                  class="w-full rounded-lg border border-ink-600 bg-ink-950 px-3 py-3 text-mist-200 outline-none transition focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
+            {% for hours in weekly_hour_choices %}
+              <option value="{{ hours }}" {% if weekly_hours == hours %}selected{% endif %}>
+                {{ hours }} hrs/week
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit"
+                class="rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
+          Build my path
+        </button>
       </div>
-      <div>
-        <label class="sr-only" for="weekly_hours">Hours per week</label>
-        <select id="weekly_hours" name="weekly_hours"
-                class="w-full rounded-lg border border-ink-600 bg-ink-950 px-3 py-3 text-mist-200 outline-none transition focus:border-signal-500 focus:ring-1 focus:ring-signal-500/30">
-          {% for hours in weekly_hour_choices %}
-            <option value="{{ hours }}" {% if weekly_hours == hours %}selected{% endif %}>
-              {{ hours }} hrs/week
-            </option>
-          {% endfor %}
-        </select>
+      <div class="flex flex-wrap gap-1.5" aria-label="Suggested goals">
+        {% for sample in [
+          'Become an agentic AI engineer',
+          'Become an MLOps engineer',
+          'Become a full-stack engineer',
+          'Become a data engineer'
+        ] %}
+          <button type="button"
+                  class="path-goal-chip rounded-full border border-ink-700 bg-ink-950/80 px-2.5 py-1 text-[11px] text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300"
+                  data-goal="{{ sample }}">{{ sample }}</button>
+        {% endfor %}
       </div>
-      <button type="submit"
-              class="rounded-lg bg-signal-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-signal-400 hover:shadow-[0_0_18px_rgba(34,201,138,.25)] active:scale-[0.98]">
-        Build my path
-      </button>
     </form>
+    <script>
+      (function () {
+        var input = document.getElementById('goal');
+        if (!input) return;
+        document.querySelectorAll('.path-goal-chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            input.value = chip.getAttribute('data-goal') || '';
+            input.focus();
+          });
+        });
+      })();
+    </script>
     <p class="mt-4 font-mono text-[11px] text-mist-500">
       uses Mesh when available · heuristic fallback otherwise · goal saved to your account
     </p>

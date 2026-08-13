@@ -12,7 +12,7 @@ Built by **AY Systum** for the **SmartReco Build Challenge 2026**
 ![LangGraph](https://img.shields.io/badge/LangGraph-state%20machine-1C3C3C)
 ![Qdrant](https://img.shields.io/badge/Qdrant-hybrid%20search-DC244C)
 ![Mesh API](https://img.shields.io/badge/all%20LLM%20calls-Mesh%20API-22c98a)
-![Tests](https://img.shields.io/badge/tests-166%20passing-22c98a)
+![Tests](https://img.shields.io/badge/tests-169%20passing-22c98a)
 
 
 <p align="center">
@@ -142,7 +142,7 @@ human-readable page at **`/architecture`**.
 | **Email** | SendGrid *or* SMTP *or* console | `console` is the default so digests work with no credentials |
 | **Frontend** | Jinja2 + vanilla JS + Tailwind CDN | No build step; the tracker is ~350 lines of dependency-free JS |
 | **Auth** | JWT (`python-jose`) + bcrypt | HttpOnly cookie for pages, Bearer token for API — one token type |
-| **Tests** | pytest — **166 tests, all passing** | Runs the real graph with no services and no keys |
+| **Tests** | pytest — **169 tests, all passing** | Runs the real graph with no services and no keys |
 
 ---
 

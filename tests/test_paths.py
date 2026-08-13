@@ -205,3 +205,30 @@ def test_path_routes_are_registered(client, auth_headers) -> None:
     openapi = client.get("/openapi.json").json()
     paths = openapi.get("paths") or {}
     assert "/api/path" in paths
+
+
+def test_footer_and_signed_in_path_show_goal_chips(client, auth_headers) -> None:
+    """Footer links Path; signed-in builder offers sample goal chips."""
+    home = client.get("/", headers={"Accept": "text/html"})
+    assert home.status_code == 200
+    assert 'href="/path"' in home.text
+
+    page = client.get("/path", headers={**auth_headers, "Accept": "text/html"})
+    assert page.status_code == 200
+    assert "path-goal-chip" in page.text
+    assert "Become an agentic AI engineer" in page.text
+
+
+def test_activity_digest_includes_career_goal(db, user, products, make_events) -> None:
+    """Agent activity analysis should surface a saved Path goal."""
+    from app.agent.nodes import activity_analyzer
+    from app.agent.state import make_initial_state
+
+    user.career_goal = "Become a data engineer"
+    db.add(user)
+    db.commit()
+    make_events(user, products[:2], count=4)
+
+    update = activity_analyzer(make_initial_state(user.id, trigger_reason="manual"))
+    digest = str(update.get("behavior_digest") or "")
+    assert "data engineer" in digest.lower()
