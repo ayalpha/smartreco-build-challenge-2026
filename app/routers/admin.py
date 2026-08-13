@@ -76,7 +76,9 @@ def _create_product(db: Session, payload: ProductCreate) -> tuple[Product, Any]:
 
 def _update_product(db: Session, product: Product, payload: ProductUpdate) -> tuple[Product, Any]:
     """Apply a partial update in SQL, bump the revision, re-embed and upsert."""
-    changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+    # Preserve explicit nulls so PATCH clients can clear nullable fields.
+    # ``exclude_unset`` still leaves omitted fields unchanged.
+    changes = payload.model_dump(exclude_unset=True)
     # `is_active` is meaningful when explicitly set to False, so re-add it.
     if "is_active" in payload.model_fields_set:
         changes["is_active"] = payload.is_active

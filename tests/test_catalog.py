@@ -391,6 +391,28 @@ class TestDualWrite:
         assert refreshed.revision == original_revision + 1
         assert target.id in _vector_ids()
 
+    def test_patch_can_clear_nullable_product_fields(
+        self, client: TestClient, db: Session, admin_headers: dict[str, str],
+        products: list[Product],
+    ) -> None:
+        target = products[0]
+        target.rating = 4.8
+        target.instructor = "Existing Instructor"
+        db.commit()
+
+        response = client.patch(
+            f"/api/admin/products/{target.id}",
+            json={"rating": None, "instructor": None},
+            headers=admin_headers,
+        )
+
+        assert response.status_code == 200
+        db.expire_all()
+        refreshed = db.get(Product, target.id)
+        assert refreshed is not None
+        assert refreshed.rating is None
+        assert refreshed.instructor is None
+
     def test_delete_removes_from_both_stores(
         self, client: TestClient, db: Session, admin_headers: dict[str, str],
         products: list[Product],
