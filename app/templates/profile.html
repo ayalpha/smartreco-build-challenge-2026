@@ -183,7 +183,7 @@
     {% endif %}
 
     {% if event_counts %}
-      <div class="mt-6 rounded-[10px] border border-ink-700/70 bg-ink-900 p-4">
+      <div class="mt-6 rounded-card border border-ink-700/70 bg-ink-900 p-4">
         <p class="font-mono text-[10px] lowercase tracking-[0.15em] text-mist-500">event breakdown</p>
         <dl class="mt-3 space-y-2 text-sm">
           {% for event_type, count in event_counts.items() | sort(attribute='1', reverse=true) %}

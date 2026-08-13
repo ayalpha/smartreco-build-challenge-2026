@@ -4,7 +4,7 @@
 
 {% block content %}
 <header class="max-w-3xl">
-  <p class="font-mono text-[11px] uppercase tracking-[0.25em] text-signal-400">Architecture</p>
+  <p class="font-mono text-[11px] lowercase tracking-[0.25em] text-signal-400">architecture</p>
   <h1 class="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-white">
     How the recommendation agent works
   </h1>
@@ -46,13 +46,18 @@
     ] %}
 
     {% for name, summary, detail, model_key in nodes %}
-      <article class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+      <article class="rounded-card border border-ink-700/70 bg-ink-900 p-5">
         <div class="flex flex-wrap items-baseline justify-between gap-3">
           <div class="flex items-baseline gap-3">
-            <span class="grid h-6 w-6 shrink-0 place-items-center rounded bg-signal-500/15 font-mono text-[11px] font-bold text-signal-400">{{ loop.index }}</span>
-            <h3 class="font-mono text-sm font-semibold text-white">{{ name }}</h3>
+            {# Reasoning nodes lean iris; terminal store node leans signal (outcome). #}
+            {% if model_key in ('reasoning', 'grader', 'writer', 'embedding') %}
+              <span class="grid h-6 w-6 shrink-0 place-items-center rounded bg-iris-500/15 font-mono text-[11px] font-bold text-iris-400">{{ loop.index }}</span>
+            {% else %}
+              <span class="grid h-6 w-6 shrink-0 place-items-center rounded bg-signal-500/15 font-mono text-[11px] font-bold text-signal-400">{{ loop.index }}</span>
+            {% endif %}
+            <h3 class="font-mono text-sm font-semibold lowercase text-white">{{ name }}</h3>
           </div>
-          <p class="font-mono text-[10px] uppercase tracking-wider text-mist-500">
+          <p class="font-mono text-[10px] lowercase tracking-wider text-mist-500">
             {% if model_key == 'none' %}no model call{% else %}{{ models.get(model_key, model_key) }}{% endif %}
           </p>
         </div>
@@ -73,18 +78,18 @@
     write a recommendation from what we have rather than returning nothing.
   </p>
 
-  <div class="mt-5 overflow-x-auto rounded-xl border border-ink-700/70 bg-ink-950 p-5">
+  <div class="mt-5 overflow-x-auto rounded-card border border-ink-700/70 bg-ink-950 p-5">
     <pre class="font-mono text-[11px] leading-relaxed text-mist-400">{{ mermaid }}</pre>
   </div>
-  <p class="mt-2 font-mono text-[11px] text-mist-500">
-    Mermaid definition, rendered live from the compiled graph. Machine-readable version:
+  <p class="mt-2 font-mono text-[11px] lowercase text-mist-500">
+    mermaid definition · machine-readable:
     <a href="/api/agent/graph" class="text-mist-500 underline decoration-ink-600 underline-offset-2 transition hover:text-mist-200">/api/agent/graph</a>
   </p>
 </section>
 
 <!-- =============================== TRIGGERS =============================== -->
 <section class="mt-12 grid gap-4 lg:grid-cols-2">
-  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+  <div class="rounded-card border border-ink-700/70 bg-ink-900 p-5">
     <h2 class="text-sm font-semibold text-white">When the agent runs</h2>
     <p class="mt-2 text-[13px] leading-relaxed text-mist-500">
       Running on every event would be wasteful; running once per session would go stale.
@@ -98,7 +103,7 @@
       ] %}
       {% for reason, detail in rules %}
         <li class="flex gap-3">
-          <span class="mt-0.5 shrink-0 rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] text-signal-400">{{ reason }}</span>
+          <span class="mt-0.5 shrink-0 rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] lowercase text-iris-400">{{ reason }}</span>
           <span class="text-mist-400">{{ detail }}</span>
         </li>
       {% endfor %}
@@ -110,7 +115,7 @@
     </p>
   </div>
 
-  <div class="rounded-xl border border-ink-700/70 bg-ink-900 p-5">
+  <div class="rounded-card border border-ink-700/70 bg-ink-900 p-5">
     <h2 class="text-sm font-semibold text-white">Runtime status</h2>
     <dl class="mt-3 space-y-1.5 font-mono text-[11px]">
       {% for label, value in [
@@ -123,7 +128,7 @@
           ('scheduler', 'running' if scheduler.running else 'stopped')
         ] %}
         <div class="flex justify-between gap-4 border-b border-ink-800 pb-1.5">
-          <dt class="text-mist-500">{{ label }}</dt>
+          <dt class="lowercase text-mist-500">{{ label }}</dt>
           <dd class="truncate text-mist-200">{{ value }}</dd>
         </div>
       {% endfor %}
@@ -131,7 +136,7 @@
 
     {% if scheduler.jobs %}
       <div class="mt-4">
-        <p class="font-mono text-[10px] uppercase tracking-wider text-mist-500">Scheduled jobs</p>
+        <p class="font-mono text-[10px] lowercase tracking-wider text-mist-500">scheduled jobs</p>
         <ul class="mt-2 space-y-1.5 font-mono text-[11px] text-mist-400">
           {% for job in scheduler.jobs %}
             <li class="flex justify-between gap-3">
@@ -161,7 +166,7 @@
   </p>
 </section>
 <!-- =============================== ABOUT ================================== -->
-<section class="mt-12 max-w-3xl rounded-2xl border border-ink-700/70 bg-ink-900 p-6">
+<section class="mt-12 max-w-3xl rounded-ai border border-ink-700/70 bg-ink-900 p-6">
   <p class="font-mono text-[10px] lowercase tracking-[0.2em] text-iris-400">about this build</p>
   <h2 class="mt-3 text-xl font-bold tracking-[-0.02em] text-white">Nexora, by AY Systum</h2>
   <p class="mt-3 text-sm leading-relaxed text-mist-400">

@@ -44,10 +44,11 @@ ds-field {{ extra }}
 {%- endmacro %}
 
 {% macro level_badge(level) %}
+  {# Brand-aligned skill dots: mist (entry) → signal (progress) → iris (depth). #}
   {% set dots = {
-    'beginner':     'bg-sky-400',
-    'intermediate': 'bg-amber-400',
-    'advanced':     'bg-fuchsia-400'
+    'beginner':     'bg-mist-400',
+    'intermediate': 'bg-signal-400',
+    'advanced':     'bg-iris-400'
   } %}
   <span class="inline-flex items-center gap-1.5 font-mono text-[10px] lowercase tracking-wide text-mist-400">
     <span class="h-1.5 w-1.5 rounded-full {{ dots.get(level|string|lower, 'bg-mist-500') }}" aria-hidden="true"></span>{{ level or 'any' }}
@@ -290,7 +291,7 @@ ds-field {{ extra }}
         aria-label="Rated {{ '%.1f' | format(value) }} out of 5">
     <span class="flex" aria-hidden="true">
       {% for i in range(1, 6) %}
-        <svg width="12" height="12" viewBox="0 0 20 20" class="{{ 'text-amber-400' if value >= i - 0.25 else 'text-ink-600' }}">
+        <svg width="12" height="12" viewBox="0 0 20 20" class="{{ 'text-signal-400' if value >= i - 0.25 else 'text-ink-600' }}">
           <path fill="currentColor" d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z"/>
         </svg>
       {% endfor %}
@@ -298,4 +299,15 @@ ds-field {{ extra }}
     <span class="font-mono text-[11px] tabular-nums text-mist-400">{{ '%.1f' | format(value) }}</span>
     {% if count %}<span class="font-mono text-[10px] text-mist-500">({{ count }})</span>{% endif %}
   </span>
+{% endmacro %}
+
+
+{# Compact table / pagination control — styles in custom.css (.ds-btn-compact). #}
+{% macro btn_compact(label, href=None, type='button', class='', attrs='', danger=false) %}
+  {% set base = 'ds-btn-compact' ~ (' ds-btn-compact--danger' if danger else '') %}
+  {% if href %}
+    <a href="{{ href }}" class="{{ base }} {{ class }}" {{ attrs|safe }}>{{ label }}</a>
+  {% else %}
+    <button type="{{ type }}" class="{{ base }} {{ class }}" {{ attrs|safe }}>{{ label }}</button>
+  {% endif %}
 {% endmacro %}

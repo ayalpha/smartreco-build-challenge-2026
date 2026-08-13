@@ -149,6 +149,37 @@
   transform: scale(0.98);
 }
 
+/* Compact table/pagination density (pairs with btn_compact macro). */
+.ds-btn-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line-strong);
+  color: #c7d0dc;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.625rem;
+  transition: border-color var(--dur-feedback) var(--ease-standard),
+    color var(--dur-feedback) var(--ease-standard),
+    background-color var(--dur-feedback) var(--ease-standard);
+}
+
+.ds-btn-compact:hover {
+  border-color: var(--line-hover);
+  color: #fff;
+}
+
+.ds-btn-compact--danger {
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+}
+
+.ds-btn-compact--danger:hover {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.55);
+}
+
 .ds-field {
   width: 100%;
   border-radius: var(--r-control);

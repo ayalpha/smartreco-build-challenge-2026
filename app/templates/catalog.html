@@ -137,7 +137,7 @@
     <nav class="mt-10 flex items-center justify-center gap-1.5" aria-label="Pagination">
       {% if page > 1 %}
         <a href="/catalog?page={{ page - 1 }}{{ base_qs }}"
-           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">← Prev</a>
+           class="ds-btn-secondary px-3 py-1.5 text-sm">← Prev</a>
       {% endif %}
 
       {% for number in range(1, pages + 1) %}
@@ -148,13 +148,13 @@
             {{ number }}
           </a>
         {% elif number == page - 2 or number == page + 2 %}
-          <span class="px-1 text-mist-500">…</span>
+          <span class="px-1 font-mono text-mist-500">…</span>
         {% endif %}
       {% endfor %}
 
       {% if page < pages %}
         <a href="/catalog?page={{ page + 1 }}{{ base_qs }}"
-           class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-mist-200 transition hover:border-ink-500 hover:text-white">Next →</a>
+           class="ds-btn-secondary px-3 py-1.5 text-sm">Next →</a>
       {% endif %}
     </nav>
   {% endif %}

@@ -110,16 +110,16 @@
     <div class="mt-5 overflow-hidden rounded-xl border border-ink-700/70">
       <div class="overflow-x-auto">
         <table class="w-full min-w-[54rem] text-left text-sm">
-          <thead class="bg-ink-850 font-mono text-[10px] uppercase tracking-wider text-mist-500">
+          <thead class="bg-ink-850 font-mono text-[10px] lowercase tracking-wider text-mist-500">
             <tr>
-              <th class="px-4 py-3 font-medium">ID</th>
-              <th class="px-4 py-3 font-medium">Title</th>
-              <th class="px-4 py-3 font-medium">Category</th>
-              <th class="px-4 py-3 font-medium">Level</th>
-              <th class="px-4 py-3 text-right font-medium">Price</th>
-              <th class="px-4 py-3 text-center font-medium">Rev</th>
-              <th class="px-4 py-3 text-center font-medium">Active</th>
-              <th class="px-4 py-3 text-right font-medium">Actions</th>
+              <th class="px-4 py-3 font-medium">id</th>
+              <th class="px-4 py-3 font-medium">title</th>
+              <th class="px-4 py-3 font-medium">category</th>
+              <th class="px-4 py-3 font-medium">level</th>
+              <th class="px-4 py-3 text-right font-medium">price</th>
+              <th class="px-4 py-3 text-center font-medium">rev</th>
+              <th class="px-4 py-3 text-center font-medium">active</th>
+              <th class="px-4 py-3 text-right font-medium">actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-ink-800 bg-ink-900">
@@ -142,12 +142,10 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
-                    <a href="/admin/products/{{ product.id }}/edit"
-                       class="rounded border border-ink-600 px-2.5 py-1 text-xs font-medium text-mist-200 transition hover:border-ink-500 hover:text-white">Edit</a>
+                    {{ ui.btn_compact('Edit', href='/admin/products/' ~ product.id ~ '/edit') }}
                     <form method="post" action="/admin/products/{{ product.id }}/delete"
                           data-confirm-delete="course #{{ product.id }}">
-                      <button type="submit"
-                              class="rounded border border-rose-500/40 px-2.5 py-1 text-xs font-medium text-rose-300 transition hover:bg-rose-500/10">Delete</button>
+                      {{ ui.btn_compact('Delete', type='submit', danger=true) }}
                     </form>
                   </div>
                 </td>
@@ -174,15 +172,15 @@
   <div class="mt-5 overflow-hidden rounded-xl border border-ink-700/70">
     <div class="overflow-x-auto">
       <table class="w-full min-w-[48rem] text-left text-sm">
-        <thead class="bg-ink-850 font-mono text-[10px] uppercase tracking-wider text-mist-500">
+        <thead class="bg-ink-850 font-mono text-[10px] lowercase tracking-wider text-mist-500">
           <tr>
-            <th class="px-4 py-3 font-medium">ID</th>
-            <th class="px-4 py-3 font-medium">User</th>
-            <th class="px-4 py-3 font-medium">Trigger</th>
-            <th class="px-4 py-3 font-medium">Headline</th>
-            <th class="px-4 py-3 text-center font-medium">Items</th>
-            <th class="px-4 py-3 text-right font-medium">Latency</th>
-            <th class="px-4 py-3 text-center font-medium">Mode</th>
+            <th class="px-4 py-3 font-medium">id</th>
+            <th class="px-4 py-3 font-medium">user</th>
+            <th class="px-4 py-3 font-medium">trigger</th>
+            <th class="px-4 py-3 font-medium">headline</th>
+            <th class="px-4 py-3 text-center font-medium">items</th>
+            <th class="px-4 py-3 text-right font-medium">latency</th>
+            <th class="px-4 py-3 text-center font-medium">mode</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-ink-800 bg-ink-900">
@@ -196,9 +194,9 @@
               <td class="px-4 py-3 text-right font-mono text-xs text-mist-400">{{ '%.0f' | format(record.latency_ms or 0) }} ms</td>
               <td class="px-4 py-3 text-center">
                 {% if record.degraded %}
-                  <span class="font-mono text-[10px] uppercase text-amber-300">degraded</span>
+                  <span class="font-mono text-[10px] lowercase text-amber-300">degraded</span>
                 {% else %}
-                  <span class="font-mono text-[10px] uppercase text-signal-400">full</span>
+                  <span class="font-mono text-[10px] lowercase text-signal-400">full</span>
                 {% endif %}
               </td>
             </tr>
