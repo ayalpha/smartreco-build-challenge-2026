@@ -34,12 +34,14 @@ from app.evals.datasets import (
 from app.evals.metrics import (
     average_precision_at_k,
     balanced_accuracy_from_confusion,
+    beats_baseline,
     best_threshold_by_metric,
     blend_rerank_scores,
     bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
     confusion_counts,
+    confusion_matrix_labels,
     fbeta_score,
     k_sweep_table,
     matthews_corrcoef,
@@ -50,6 +52,7 @@ from app.evals.metrics import (
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
     precision_recall_auc,
+    random_ranking_baseline,
     rank_by_scores,
     ranking_metrics_at_k,
     scores_to_labels,
@@ -70,6 +73,7 @@ from app.evals.runner import (
     run_classification_eval,
     run_eval_suite,
     run_grader_threshold_eval,
+    run_param_grid,
     run_rerank_eval,
     run_retrieval_eval,
 )
@@ -1391,3 +1395,115 @@ class TestMcNemarKSweepFixturesAndSuite:
         assert suite["grader_fixtures"]["n_match"] == suite["grader_fixtures"]["n"]
         assert suite["rerank_fixtures"]["n"] >= 1
         assert suite["passed_gates"] is True
+
+
+class TestRandomBaselineParamGridAndConfusion:
+    def test_random_baseline_in_unit_range(self) -> None:
+        baseline = random_ranking_baseline(
+            [{1, 2}, {3}],
+            catalog_ids=[1, 2, 3, 4, 5, 6],
+            k=2,
+            n_trials=20,
+            seed=0,
+            min_relevant=1,
+        )
+        for key in ("accuracy", "precision", "recall", "f1", "hit_at_k", "mrr"):
+            assert 0.0 <= baseline[key] <= 1.0 + 1e-9
+        assert baseline["n_trials"] == 20.0
+
+    def test_beats_baseline_helper(self) -> None:
+        result = beats_baseline(
+            {"precision": 0.8, "recall": 0.5, "f1": 0.6, "hit_at_k": 1.0, "mrr": 0.7},
+            {"precision": 0.2, "recall": 0.2, "f1": 0.2, "hit_at_k": 0.3, "mrr": 0.2},
+        )
+        assert result["all_beat"] is True
+        assert result["n_wins"] == 5
+
+    def test_retrieval_vs_random(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(3,),
+                split="train",
+                limit_cases=5,
+                include_per_case=False,
+                min_relevant=1,
+                random_baseline_trials=15,
+                seed=1,
+                min_hit_rate=0.0,
+            ),
+        )
+        assert "random_baseline" in metrics
+        assert "vs_random" in metrics
+        assert metrics["vs_random"]["n_checked"] >= 1
+        text = format_metrics_report(metrics, title="Random")
+        assert "Vs random baseline" in text
+
+    def test_param_grid_k_values(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        grid = run_param_grid(
+            db,
+            grid=[{"k": 1, "ks": (1,)}, {"k": 3, "ks": (3,)}],
+            base_params=EvalParams(
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_relevant=1,
+                min_hit_rate=0.0,
+            ),
+        )
+        assert grid["task"] == "param_grid"
+        assert grid["n"] == 2
+        assert grid["best_by_f1"] is not None
+        for row in grid["rows"]:
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert 0.0 <= float(row[key]) <= 1.0 + 1e-9
+
+    def test_confusion_matrix_multiclass(self) -> None:
+        matrix = confusion_matrix_labels(
+            ["A", "A", "B", "C"],
+            ["A", "B", "B", "C"],
+            labels=["A", "B", "C"],
+        )
+        assert matrix["labels"] == ["A", "B", "C"]
+        assert matrix["matrix"]["A"]["A"] == 1
+        assert matrix["matrix"]["A"]["B"] == 1
+        assert matrix["matrix"]["B"]["B"] == 1
+        assert matrix["matrix"]["C"]["C"] == 1
+
+    def test_classification_includes_confusion_matrix(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            [1, 0, 1, 0],
+            params=EvalParams(average="binary"),
+        )
+        assert "confusion_matrix" in metrics
+        assert "matrix" in metrics["confusion_matrix"]
+
+    @pytest.mark.parametrize(
+        "mode,k",
+        [("hybrid", 1), ("hybrid", 3), ("keyword", 2)],
+    )
+    def test_grid_like_param_surface(
+        self, db: Session, products: list[Product], mode: str, k: int
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=k,
+                ks=(k,),
+                retrieval_mode=mode,  # type: ignore[arg-type]
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_relevant=1,
+                min_hit_rate=0.0,
+            ),
+        )
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9

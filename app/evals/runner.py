@@ -21,11 +21,13 @@ from app.evals.datasets import (
     resolve_cases,
 )
 from app.evals.metrics import (
+    beats_baseline,
     best_threshold_by_metric,
     blend_rerank_scores,
     bootstrap_metric_ci,
     classification_metrics,
     classification_metrics_bundle,
+    confusion_matrix_labels,
     k_sweep_table,
     matthews_corrcoef,
     mcnemar_test,
@@ -35,6 +37,7 @@ from app.evals.metrics import (
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
     precision_recall_auc,
+    random_ranking_baseline,
     rank_by_scores,
     ranking_metrics_at_k,
     scores_to_labels,
@@ -254,10 +257,38 @@ def run_retrieval_eval(
         zero_division=params.zero_division,
     )
 
+    if params.random_baseline_trials > 0 and gold_lists:
+        baseline = random_ranking_baseline(
+            gold_lists,
+            catalog_ids=catalog_ids,
+            k=params.k,
+            n_trials=params.random_baseline_trials,
+            seed=params.seed,
+            min_relevant=params.min_relevant,
+            zero_division=params.zero_division,
+        )
+        metrics["random_baseline"] = baseline
+        # Compare primary ranking aliases (precision/recall/f1 map to @k).
+        ranking_view = {
+            "precision": metrics.get("precision_at_k", metrics.get("precision")),
+            "recall": metrics.get("recall_at_k", metrics.get("recall")),
+            "f1": metrics.get("f1_at_k", metrics.get("f1")),
+            "hit_at_k": metrics.get("hit_at_k"),
+            "mrr": metrics.get("mrr"),
+            "success_at_k": metrics.get("success_at_k"),
+        }
+        metrics["vs_random"] = beats_baseline(ranking_view, baseline)
+        if params.require_beat_random and not metrics["vs_random"]["all_beat"]:
+            # Soft-fail via gate list after passes_gates below.
+            metrics["_require_beat_random"] = True
+
     if active_filters is not None:
         metrics["filters"] = active_filters.describe()
 
     passed, failures = params.passes_gates(metrics)
+    if metrics.pop("_require_beat_random", False):
+        passed = False
+        failures = list(failures) + ["random_baseline: did not beat null model on all keys"]
     metrics["passed_gates"] = passed
     metrics["gate_failures"] = failures
     return metrics
@@ -421,6 +452,7 @@ def run_classification_eval(
         positive_label=params.positive_label,
         zero_division=params.zero_division,
     )
+    metrics["confusion_matrix"] = confusion_matrix_labels(y_true, predictions)
 
     if params.n_bootstrap > 0:
         metrics["bootstrap"] = {}
@@ -640,6 +672,51 @@ def report_retrieval_eval(
     """Run retrieval eval and format for stdout."""
     metrics = run_retrieval_eval(db, params=params)
     return format_metrics_report(metrics, title="Retrieval eval", as_json=as_json)
+
+
+def run_param_grid(
+    db: Session,
+    *,
+    grid: Sequence[Mapping[str, Any]],
+    base_params: Optional[EvalParams] = None,
+    cases: Optional[Sequence[RetrievalCase]] = None,
+) -> dict[str, Any]:
+    """Run retrieval eval for each param override in ``grid``.
+
+    Each grid entry is a dict of ``EvalParams`` field overrides, e.g.::
+
+        [{"k": 1}, {"k": 3}, {"k": 5, "retrieval_mode": "keyword"}]
+
+    Returns a list of ``{overrides, metrics}`` rows plus a compact APRF table.
+    """
+    base = base_params or DEFAULT_EVAL_PARAMS
+    rows: list[dict[str, Any]] = []
+    for index, overrides in enumerate(grid):
+        params = base.with_updates(**dict(overrides))
+        metrics = run_retrieval_eval(db, params=params, cases=cases)
+        rows.append(
+            {
+                "index": index,
+                "overrides": dict(overrides),
+                "accuracy": metrics.get("accuracy"),
+                "precision": metrics.get("precision"),
+                "recall": metrics.get("recall"),
+                "f1": metrics.get("f1"),
+                "hit_at_k": metrics.get("hit_at_k"),
+                "mrr": metrics.get("mrr"),
+                "success_at_k": metrics.get("success_at_k"),
+                "passed_gates": metrics.get("passed_gates"),
+                "n_cases": metrics.get("n_cases"),
+                "metrics": metrics,
+            }
+        )
+    return {
+        "task": "param_grid",
+        "n": len(rows),
+        "base_params": base.to_dict(),
+        "rows": rows,
+        "best_by_f1": max(rows, key=lambda r: float(r.get("f1") or 0.0)) if rows else None,
+    }
 
 
 def compare_thresholds(

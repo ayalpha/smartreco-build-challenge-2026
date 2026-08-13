@@ -1048,6 +1048,156 @@ def k_sweep_table(
     return table
 
 
+def random_ranking_baseline(
+    relevant: Sequence[Iterable[Label]],
+    *,
+    catalog_ids: Sequence[Label],
+    k: int,
+    n_trials: int = 50,
+    seed: int = 0,
+    min_relevant: int = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> dict[str, float]:
+    """Monte-Carlo mean ranking metrics for random top-k draws (null model).
+
+    Useful as a floor: real retrieval should beat random on precision/recall/F1
+    and hit rate.
+    """
+    import random
+
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+    if n_trials < 1:
+        raise ValueError(f"n_trials must be >= 1, got {n_trials}")
+    if not catalog_ids:
+        z = float(zero_division)
+        return {
+            "accuracy": z,
+            "precision": z,
+            "recall": z,
+            "f1": z,
+            "hit_at_k": z,
+            "success_at_k": z,
+            "mrr": z,
+            "n_trials": 0.0,
+        }
+
+    rng = random.Random(seed)
+    pool = list(catalog_ids)
+    draw_k = min(k, len(pool))
+    accs: list[float] = []
+    precs: list[float] = []
+    recs: list[float] = []
+    f1s: list[float] = []
+    hits: list[float] = []
+    succs: list[float] = []
+    mrrs: list[float] = []
+
+    for _ in range(n_trials):
+        ranked_lists: list[list[Label]] = []
+        for _query in relevant:
+            sample = pool[:]
+            rng.shuffle(sample)
+            ranked_lists.append(sample[:draw_k])
+        report = ranking_metrics_at_k(
+            ranked_lists,
+            relevant,
+            k=draw_k,
+            catalog_size=len(pool),
+            zero_division=zero_division,
+        )
+        accs.append(report.accuracy_at_k)
+        precs.append(report.precision_at_k)
+        recs.append(report.recall_at_k)
+        f1s.append(report.f1_at_k)
+        hits.append(report.hit_at_k)
+        mrrs.append(report.mrr)
+        succs.append(
+            success_at_k(
+                ranked_lists, relevant, k=draw_k, min_relevant=min_relevant
+            )
+        )
+
+    n = float(n_trials)
+    return {
+        "accuracy": sum(accs) / n,
+        "precision": sum(precs) / n,
+        "recall": sum(recs) / n,
+        "f1": sum(f1s) / n,
+        "hit_at_k": sum(hits) / n,
+        "success_at_k": sum(succs) / n,
+        "mrr": sum(mrrs) / n,
+        "n_trials": n,
+        "k": float(draw_k),
+    }
+
+
+def beats_baseline(
+    metrics: Mapping[str, Any],
+    baseline: Mapping[str, Any],
+    *,
+    keys: Sequence[str] = ("precision", "recall", "f1", "hit_at_k", "mrr"),
+) -> dict[str, Any]:
+    """Per-key comparison of metrics vs a random/null baseline."""
+    comparisons: dict[str, dict[str, float | bool]] = {}
+    wins = 0
+    checked = 0
+    for key in keys:
+        if key not in metrics or key not in baseline:
+            continue
+        try:
+            m_val = float(metrics[key])
+            b_val = float(baseline[key])
+        except (TypeError, ValueError):
+            continue
+        win = m_val > b_val + 1e-12
+        comparisons[key] = {
+            "metric": m_val,
+            "baseline": b_val,
+            "delta": m_val - b_val,
+            "beats": win,
+        }
+        checked += 1
+        if win:
+            wins += 1
+    return {
+        "n_checked": checked,
+        "n_wins": wins,
+        "all_beat": checked > 0 and wins == checked,
+        "by_key": comparisons,
+    }
+
+
+def confusion_matrix_labels(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    labels: Optional[Sequence[Label]] = None,
+) -> dict[str, Any]:
+    """Multi-class confusion matrix as nested counts ``matrix[true][pred]``."""
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true/y_pred length mismatch")
+    if labels is None:
+        label_list = sorted(set(y_true) | set(y_pred), key=_labels_to_str)
+    else:
+        label_list = list(labels)
+    matrix: dict[str, dict[str, int]] = {
+        _labels_to_str(t): {_labels_to_str(p): 0 for p in label_list} for t in label_list
+    }
+    for truth, pred in zip(y_true, y_pred):
+        t_key = _labels_to_str(truth)
+        p_key = _labels_to_str(pred)
+        if t_key not in matrix:
+            matrix[t_key] = {_labels_to_str(p): 0 for p in label_list}
+        if p_key not in matrix[t_key]:
+            matrix[t_key][p_key] = 0
+        matrix[t_key][p_key] += 1
+    return {
+        "labels": [_labels_to_str(lbl) for lbl in label_list],
+        "matrix": matrix,
+    }
+
+
 def _log2(value: float) -> float:
     """log2 without importing math (keeps the module stdlib-light)."""
     from math import log2

@@ -187,6 +187,20 @@ def format_metrics_report(
                 f"F1={_format_value(row.get('f1'), 4)}"
             )
 
+    vs_random = metrics.get("vs_random")
+    if isinstance(vs_random, dict) and vs_random.get("by_key"):
+        sections.append("")
+        sections.append("Vs random baseline")
+        for key, block in vs_random["by_key"].items():
+            if not isinstance(block, dict):
+                continue
+            beat = "WIN" if block.get("beats") else "lose"
+            sections.append(
+                f"  — {key}: metric={_format_value(block.get('metric'), 4)} "
+                f"base={_format_value(block.get('baseline'), 4)} "
+                f"Δ={_format_value(block.get('delta'), 4)} [{beat}]"
+            )
+
     k_sweep = metrics.get("k_sweep")
     if isinstance(k_sweep, dict) and k_sweep:
         sections.append("")

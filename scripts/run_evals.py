@@ -200,6 +200,24 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Include hybrid vs keyword compare inside --suite",
     )
+    parser.add_argument(
+        "--random-baseline",
+        type=int,
+        default=0,
+        help="Monte-Carlo random baseline trials (0 disables)",
+    )
+    parser.add_argument(
+        "--require-beat-random",
+        action="store_true",
+        help="Fail gates if metrics do not beat the random baseline",
+    )
+    parser.add_argument(
+        "--grid-k",
+        type=int,
+        nargs="*",
+        default=None,
+        help="Run a k-grid (e.g. --grid-k 1 3 5) instead of a single eval",
+    )
     return parser.parse_args(argv)
 
 
@@ -216,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     from app.evals.runner import (
         compare_retrieval_modes,
         run_eval_suite,
+        run_param_grid,
         run_retrieval_eval,
     )
     from app.evals.report import format_metrics_report, metrics_to_json
@@ -282,12 +301,38 @@ def main(argv: list[str] | None = None) -> int:
         overrides["categories"] = tuple(args.categories)
     if args.max_price is not None:
         overrides["max_price"] = args.max_price
+    if args.random_baseline:
+        overrides["random_baseline_trials"] = args.random_baseline
+    if args.require_beat_random:
+        overrides["require_beat_random"] = True
 
     params = base.with_updates(**overrides)
 
     with SessionLocal() as db:
         if args.seed_sample:
             _seed_sample_catalog(db)
+
+        if args.grid_k:
+            grid = [{"k": k, "ks": (k,)} for k in args.grid_k]
+            metrics = run_param_grid(db, grid=grid, base_params=params)
+            passed = all(bool(row.get("passed_gates", True)) for row in metrics["rows"])
+            if args.json:
+                print(metrics_to_json(metrics))
+            else:
+                print("Param grid (k → A/P/R/F1/hit)")
+                for row in metrics["rows"]:
+                    print(
+                        f"  k={row['overrides'].get('k')}: "
+                        f"A={row.get('accuracy'):.4f} "
+                        f"P={row.get('precision'):.4f} "
+                        f"R={row.get('recall'):.4f} "
+                        f"F1={row.get('f1'):.4f} "
+                        f"hit={row.get('hit_at_k'):.4f}"
+                    )
+                best = metrics.get("best_by_f1")
+                if best:
+                    print(f"Best F1 at overrides={best['overrides']} F1={best.get('f1')}")
+            return 0 if passed else 1
 
         if args.suite:
             metrics = run_eval_suite(

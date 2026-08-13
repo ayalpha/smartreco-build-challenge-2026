@@ -107,6 +107,9 @@ class EvalParams:
     #: Agent gate: need this many relevants in top-k (agent_min_relevant_products).
     min_relevant: int = 3
     min_success_at_k: Optional[float] = None
+    #: Monte-Carlo random baseline trials (0 disables).
+    random_baseline_trials: int = 0
+    require_beat_random: bool = False
     zero_division: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -148,6 +151,10 @@ class EvalParams:
             raise ValueError("judge_weight and retrieval_weight must be >= 0")
         if self.min_relevant < 1:
             raise ValueError(f"min_relevant must be >= 1, got {self.min_relevant}")
+        if self.random_baseline_trials < 0:
+            raise ValueError(
+                f"random_baseline_trials must be >= 0, got {self.random_baseline_trials}"
+            )
 
     def effective_ks(self) -> tuple[int, ...]:
         """Return the cutoffs to evaluate (``ks`` if set, else ``(k,)``)."""
