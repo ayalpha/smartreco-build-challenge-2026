@@ -72,7 +72,6 @@
 
 {# ============================= "NEXORA" PANEL ============================ #}
 <section class="{{ 'mt-14' if not current_user else '' }}" id="for-you"
-         aria-live="polite"
          data-authenticated="{{ 'true' if current_user else 'false' }}"
          data-has-recommendation="{{ 'true' if recommendation else 'false' }}"
          data-pending="{{ pending_reason or '' }}">
@@ -161,7 +160,7 @@
 
       <article class="ai-surface overflow-hidden rounded-2xl border border-ink-700/70 bg-gradient-to-br from-ink-900 to-ink-850 shadow-2xl shadow-black/40">
         <div class="border-b border-ink-700/70 px-6 py-5">
-          <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex flex-wrap items-center gap-2.5" aria-live="polite">
             <span class="rounded bg-signal-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold lowercase tracking-[0.15em] text-signal-400 ring-1 ring-inset ring-signal-500/25">
               ai recommendation
             </span>
@@ -210,7 +209,7 @@
                             <p class="font-mono text-sm font-medium lowercase text-mist-50">{{ signal.topic }}</p>
                             <p class="font-mono text-[11px] tabular-nums text-signal-400">{{ '%.0f' | format((signal.confidence | float) * 100) }}%</p>
                           </div>
-                          <div class="mt-2">{{ ui.confidence_bar(signal.confidence, loop.index0) }}</div>
+                          <div class="mt-2">{{ ui.confidence_bar(signal.confidence, loop.index0, 'Confidence for ' ~ signal.topic) }}</div>
                           {% if signal.evidence %}
                             <p class="mt-2.5 border-l-2 border-iris-500/50 pl-3 text-[13px] italic leading-relaxed text-mist-400">{{ signal.evidence }}</p>
                           {% endif %}

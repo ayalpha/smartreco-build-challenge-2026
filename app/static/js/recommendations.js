@@ -325,7 +325,7 @@
               '<p class="text-base font-bold text-white">' + formatPrice(product.price) + '</p>' +
               '<p class="flex items-center gap-2 font-mono text-[10px] text-mist-500">' + meta.join('') + '</p>' +
             '</div>' +
-            '<a href="/product/' + id + '" class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300" aria-label="View ' +
+            '<a href="/product/' + id + '" class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300" aria-label="View ' +
               escapeHtml(product.title) + '" ' + trackAttrs + '>→</a>' +
           '</div>' +
         '</div>' +
@@ -347,7 +347,8 @@
           '<p class="font-mono text-sm font-medium lowercase text-mist-50">' + escapeHtml(signal.topic) + '</p>' +
           '<p class="font-mono text-[11px] tabular-nums text-signal-400">' + confidence + '%</p>' +
         '</div>' +
-        '<div class="sig-bar mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter" aria-valuenow="' + confidence + '" aria-valuemin="0" aria-valuemax="100" style="--stagger: ' + index + '">' +
+        '<div class="sig-bar mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter" aria-label="Confidence for ' +
+          escapeHtml(signal.topic) + '" aria-valuenow="' + confidence + '" aria-valuemin="0" aria-valuemax="100" style="--stagger: ' + index + '">' +
           '<div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400" style="width: ' + confidence + '%"></div>' +
         '</div>' +
         (signal.evidence

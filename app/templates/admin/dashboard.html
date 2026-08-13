@@ -138,9 +138,15 @@
                 <td class="px-4 py-3 text-center font-mono text-xs text-mist-500">{{ product.revision }}</td>
                 <td class="px-4 py-3 text-center">
                   {% if product.is_active %}
-                    <span class="text-signal-400" title="Active">●</span>
+                    <span class="text-signal-400" title="Active">
+                      <span class="sr-only">Active</span>
+                      <span aria-hidden="true">●</span>
+                    </span>
                   {% else %}
-                    <span class="text-mist-500" title="Inactive">○</span>
+                    <span class="text-mist-500" title="Inactive">
+                      <span class="sr-only">Inactive</span>
+                      <span aria-hidden="true">○</span>
+                    </span>
                   {% endif %}
                 </td>
                 <td class="px-4 py-3">

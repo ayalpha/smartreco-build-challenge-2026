@@ -126,7 +126,7 @@
                   data-save-state="unsaved"
                   aria-pressed="false"
                   aria-label="Save {{ title }} for later"
-                  class="save-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
+                  class="save-btn grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-iris-500/50 hover:text-iris-300">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M4 2.5h8a1 1 0 0 1 1 1v10l-5-2.8-5 2.8v-10a1 1 0 0 1 1-1Z"
                     stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -135,14 +135,14 @@
           <button type="button"
                   data-cart-add="{{ pid }}"
                   aria-label="Add {{ title }} to cart"
-                  class="cart-btn grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
+                  class="cart-btn grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition hover:border-signal-500/50 hover:bg-signal-500/10 hover:text-signal-300">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Zm6.4 0a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
+              <path d="M1.6 2h1.9l1.6 7.4h6.6l1.5-5.2H4.2M6 13a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0Z"
                     stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
           <a href="/product/{{ pid }}"
-             class="grid h-8 w-8 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
+             class="grid h-10 w-10 place-items-center rounded-md border border-ink-600 text-mist-400 transition group-hover:border-signal-500/50 group-hover:bg-signal-500/10 group-hover:text-signal-300"
              aria-label="View {{ title }}"
              data-track-click="{{ pid }}"
              data-track-source="{{ source }}"
@@ -156,9 +156,10 @@
 {% endmacro %}
 
 
-{% macro confidence_bar(value, stagger=0) %}
+{% macro confidence_bar(value, stagger=0, label='Confidence') %}
   {% set pct = ((value | float) * 100) | round | int %}
   <div class="sig-bar h-1.5 w-full overflow-hidden rounded-full bg-ink-700" role="meter"
+       aria-label="{{ label }}"
        aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"
        style="--stagger: {{ stagger }}">
     <div class="h-full rounded-full bg-gradient-to-r from-iris-500 to-signal-400" style="width: {{ pct }}%"></div>
@@ -206,10 +207,12 @@
   any size and inherits the theme. The glyph is an "N" cut from a hexagonal
   node: a nod to the agent's graph, and readable at 20px.
 --------------------------------------------------------------------------- #}
-{% macro logo(size=32, wordmark=true) %}
+{% macro logo(size=32, wordmark=true, labelled=true) %}
 <span class="flex shrink-0 items-center gap-2.5">
+  {# When nested in a link that already names the home control, omit SVG label. #}
   <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 40 40" fill="none"
-       class="nexora-mark shrink-0" role="img" aria-label="Nexora">
+       class="nexora-mark shrink-0"
+       {% if labelled %}role="img" aria-label="Nexora"{% else %}aria-hidden="true"{% endif %}>
     <defs>
       <linearGradient id="nx-g" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="#4ADE9A"/>
@@ -224,7 +227,7 @@
     <circle class="nexora-pulse" cx="25.6" cy="12.8" r="2.7" fill="#4ADE9A"/>
   </svg>
   {% if wordmark %}
-    <span class="flex flex-col leading-none">
+    <span class="flex flex-col leading-none" {% if not labelled %}aria-hidden="true"{% endif %}>
       <span class="text-[16px] font-extrabold tracking-[-0.03em] text-white">Nexora</span>
       <span class="mt-0.5 hidden font-mono text-[9px] lowercase tracking-[0.2em] text-mist-500 sm:block">by ay systum</span>
     </span>

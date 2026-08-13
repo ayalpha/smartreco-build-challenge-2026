@@ -28,11 +28,13 @@
     signals: document.getElementById('assistant-signals'),
     signalCount: document.getElementById('assistant-signal-count'),
     suggestions: document.getElementById('assistant-suggestions'),
+    backdrop: document.getElementById('assistant-backdrop'),
   };
 
   let open = false;
   let busy = false;
   let profileLoaded = false;
+  let lastFocused = null;
 
   // ---------------------------------------------------------------- helpers
 
@@ -51,6 +53,21 @@
   /** Scroll the transcript to the newest message. */
   function scrollLog() {
     el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  /**
+   * Focusable controls inside the open panel (for Tab trapping).
+   * @return {HTMLElement[]}
+   */
+  function focusableInPanel() {
+    if (!el.panel) return [];
+    const nodes = el.panel.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), ' +
+      'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    return Array.prototype.filter.call(nodes, function (node) {
+      return node.offsetParent !== null || node === el.input;
+    });
   }
 
   /**
@@ -115,8 +132,9 @@
     wrap.className = 'assistant-msg assistant-msg--bot';
     wrap.setAttribute('data-typing', '1');
     wrap.innerHTML =
-      '<div class="assistant-bubble assistant-bubble--bot assistant-typing" aria-label="The assistant is thinking">' +
-        '<span></span><span></span><span></span>' +
+      '<div class="assistant-bubble assistant-bubble--bot assistant-typing" role="status" aria-live="polite">' +
+        '<span class="sr-only">The assistant is thinking</span>' +
+        '<span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>' +
       '</div>';
     el.log.appendChild(wrap);
     scrollLog();
@@ -221,12 +239,22 @@
   /** Open the panel. */
   function openPanel() {
     open = true;
+    lastFocused = document.activeElement;
     el.panel.hidden = false;
+    if (el.backdrop) {
+      el.backdrop.hidden = false;
+      el.backdrop.classList.add('is-open');
+    }
     // Force a reflow so the entrance transition runs from the hidden state.
     void el.panel.offsetWidth;
     el.panel.classList.add('is-open');
+    el.panel.setAttribute('aria-modal', 'true');
     el.toggle.setAttribute('aria-expanded', 'true');
+    el.toggle.setAttribute('aria-label', 'Close the Nexora assistant');
     el.toggle.classList.add('opacity-0', 'pointer-events-none');
+    el.toggle.setAttribute('tabindex', '-1');
+    el.toggle.setAttribute('aria-hidden', 'true');
+    document.documentElement.classList.add('assistant-open');
     loadProfile();
     window.setTimeout(function () { el.input.focus(); }, 120);
   }
@@ -235,17 +263,58 @@
   function closePanel() {
     open = false;
     el.panel.classList.remove('is-open');
+    el.panel.setAttribute('aria-modal', 'false');
+    if (el.backdrop) {
+      el.backdrop.classList.remove('is-open');
+      window.setTimeout(function () {
+        if (!open && el.backdrop) el.backdrop.hidden = true;
+      }, 220);
+    }
     el.toggle.setAttribute('aria-expanded', 'false');
+    el.toggle.setAttribute('aria-label', 'Open the Nexora assistant');
     el.toggle.classList.remove('opacity-0', 'pointer-events-none');
+    el.toggle.removeAttribute('tabindex');
+    el.toggle.removeAttribute('aria-hidden');
+    document.documentElement.classList.remove('assistant-open');
     window.setTimeout(function () { if (!open) el.panel.hidden = true; }, 220);
-    el.toggle.focus();
+    const restore = lastFocused && typeof lastFocused.focus === 'function' ? lastFocused : el.toggle;
+    try {
+      restore.focus();
+    } catch (err) {
+      el.toggle.focus();
+    }
   }
 
-  el.toggle.addEventListener('click', openPanel);
+  el.toggle.addEventListener('click', function () {
+    if (open) closePanel();
+    else openPanel();
+  });
   el.close.addEventListener('click', closePanel);
+  if (el.backdrop) {
+    el.backdrop.addEventListener('click', closePanel);
+  }
 
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && open) closePanel();
+    if (!open) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePanel();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const list = focusableInPanel();
+    if (!list.length) return;
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (event.shiftKey) {
+      if (document.activeElement === first || !el.panel.contains(document.activeElement)) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else if (document.activeElement === last || !el.panel.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   el.form.addEventListener('submit', function (event) {
