@@ -387,6 +387,54 @@ GOLDEN_CLASSIFICATION_FIXTURES: tuple[ClassificationFixture, ...] = (
         },
         notes="No true negatives in the set.",
     ),
+    ClassificationFixture(
+        id="all-wrong",
+        y_true=(1, 1, 0, 0),
+        y_pred=(0, 0, 1, 1),
+        expected={"accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0},
+        notes="Complete inversion of labels.",
+    ),
+    ClassificationFixture(
+        id="high-precision-low-recall",
+        y_true=(1, 1, 1, 1, 0, 0, 0, 0),
+        y_pred=(1, 0, 0, 0, 0, 0, 0, 0),
+        # TP1 FP0 TN4 FN3 → Acc=5/8, P=1, R=0.25, F1=0.4
+        expected={
+            "accuracy": 0.625,
+            "precision": 1.0,
+            "recall": 0.25,
+            "f1": 0.4,
+        },
+        notes="Conservative positive predictions.",
+    ),
+    ClassificationFixture(
+        id="high-recall-low-precision",
+        y_true=(1, 1, 0, 0, 0, 0),
+        y_pred=(1, 1, 1, 1, 1, 0),
+        # TP2 FP3 TN1 FN0 → Acc=3/6=0.5, P=0.4, R=1, F1≈0.571
+        expected={
+            "accuracy": 0.5,
+            "precision": 0.4,
+            "recall": 1.0,
+            "f1": 2.0 * 0.4 * 1.0 / (0.4 + 1.0),
+        },
+        notes="Aggressive positive predictions.",
+    ),
+    ClassificationFixture(
+        id="score-threshold-strict",
+        y_true=(1, 1, 1, 0, 0),
+        scores=(0.95, 0.7, 0.55, 0.45, 0.1),
+        # Default threshold 0.5 → pred [1,1,1,0,0] (perfect).
+        expected={"accuracy": 1.0, "precision": 1.0, "recall": 1.0, "f1": 1.0},
+        notes="Perfect at 0.5; at 0.6 → pred [1,1,0,0,0] (P=1 R=2/3).",
+    ),
+    ClassificationFixture(
+        id="near-perfect-scores",
+        y_true=(1, 1, 0, 0, 1, 0),
+        scores=(0.99, 0.92, 0.08, 0.05, 0.88, 0.12),
+        expected={"accuracy": 1.0, "precision": 1.0, "recall": 1.0, "f1": 1.0},
+        notes="Well-calibrated scores for ROC-AUC / Brier checks.",
+    ),
 )
 
 

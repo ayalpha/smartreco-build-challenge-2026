@@ -22,6 +22,8 @@ from app.evals.datasets import (
 )
 from app.evals.metrics import (
     aggregate_aprf,
+    aprf_dict,
+    aprf_parameter_table,
     beats_baseline,
     best_threshold_by_metric,
     blend_rerank_scores,
@@ -29,8 +31,11 @@ from app.evals.metrics import (
     brier_score,
     classification_metrics,
     classification_metrics_bundle,
+    cohen_kappa,
     confusion_matrix_labels,
     expected_calibration_error,
+    hamming_loss,
+    jaccard_index,
     k_sweep_table,
     matthews_corrcoef,
     mcnemar_test,
@@ -40,9 +45,11 @@ from app.evals.metrics import (
     multilabel_sets_to_binary_vectors,
     per_query_ranking,
     precision_recall_auc,
+    ranking_aprf_table,
     random_ranking_baseline,
     rank_by_scores,
     ranking_metrics_at_k,
+    roc_auc_binary,
     scores_to_labels,
     success_at_k,
     summarize_numeric_fields,
@@ -259,6 +266,18 @@ def run_retrieval_eval(
         min_relevant=params.min_relevant,
         zero_division=params.zero_division,
     )
+    metrics["aprf_by_k"] = ranking_aprf_table(
+        ranked_lists,
+        gold_lists,
+        ks=params.effective_ks(),
+        catalog_size=ranking_catalog_size,
+        zero_division=params.zero_division,
+    )
+    # Convenience top-level aliases: accuracy/precision/recall/f1 from primary k.
+    metrics.setdefault("accuracy", primary.get("accuracy_at_k", primary.get("accuracy")))
+    metrics.setdefault("precision", primary.get("precision_at_k", primary.get("precision")))
+    metrics.setdefault("recall", primary.get("recall_at_k", primary.get("recall")))
+    metrics.setdefault("f1", primary.get("f1_at_k", primary.get("f1")))
 
     if params.random_baseline_trials > 0 and gold_lists:
         baseline = random_ranking_baseline(
@@ -457,6 +476,50 @@ def run_classification_eval(
     )
     metrics["confusion_matrix"] = confusion_matrix_labels(y_true, predictions)
 
+    if params.include_extended_classification:
+        ext = aprf_dict(
+            y_true,
+            predictions,
+            average="binary",
+            positive_label=params.positive_label,
+            zero_division=params.zero_division,
+        )
+        for key in (
+            "specificity",
+            "npv",
+            "balanced_accuracy",
+            "jaccard",
+            "hamming_loss",
+            "cohen_kappa",
+        ):
+            if key in ext:
+                metrics[key] = ext[key]
+        metrics["extended"] = {
+            key: ext[key]
+            for key in (
+                "accuracy",
+                "precision",
+                "recall",
+                "f1",
+                "specificity",
+                "npv",
+                "balanced_accuracy",
+                "jaccard",
+                "hamming_loss",
+                "cohen_kappa",
+            )
+            if key in ext
+        }
+        # Aliases used by some gates / reports
+        metrics["kappa"] = metrics.get("cohen_kappa")
+        metrics["hamming"] = metrics.get("hamming_loss")
+        metrics["jaccard_index"] = jaccard_index(
+            y_true,
+            predictions,
+            positive_label=params.positive_label,
+            zero_division=params.zero_division,
+        )
+
     if params.n_bootstrap > 0:
         metrics["bootstrap"] = {}
         for metric_name in ("accuracy", "precision", "recall", "f1"):
@@ -487,6 +550,23 @@ def run_classification_eval(
         metrics["pr_auc"] = precision_recall_auc(
             metrics["by_threshold"], zero_division=params.zero_division
         )
+        metrics["aprf_by_threshold"] = aprf_parameter_table(
+            y_true,
+            scores,
+            thresholds=sweep_thresholds,
+            averages=("binary", "micro", "macro", "weighted"),
+            positive_label=params.positive_label,
+            zero_division=params.zero_division,
+        )
+
+    if scores is not None and params.include_extended_classification:
+        metrics["roc_auc"] = roc_auc_binary(
+            y_true,
+            scores,
+            positive_label=params.positive_label,
+            zero_division=params.zero_division,
+        )
+        metrics["auc"] = metrics["roc_auc"]
 
     if scores is not None and params.include_calibration:
         metrics["calibration"] = expected_calibration_error(

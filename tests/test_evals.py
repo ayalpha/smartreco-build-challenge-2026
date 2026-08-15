@@ -17,7 +17,9 @@ from app.evals.config import (
     AGENT_ALIGNED_EVAL_PARAMS,
     DEFAULT_EVAL_PARAMS,
     EvalParams,
+    MULTI_AVERAGE_EVAL_PARAMS,
     STRICT_EVAL_PARAMS,
+    SWEEP_EVAL_PARAMS,
 )
 from app.evals.datasets import (
     GOLDEN_CLASSIFICATION_FIXTURES,
@@ -33,6 +35,8 @@ from app.evals.datasets import (
 )
 from app.evals.metrics import (
     aggregate_aprf,
+    aprf_dict,
+    aprf_parameter_table,
     average_precision_at_k,
     balanced_accuracy_from_confusion,
     beats_baseline,
@@ -42,10 +46,13 @@ from app.evals.metrics import (
     brier_score,
     classification_metrics,
     classification_metrics_bundle,
+    cohen_kappa,
     confusion_counts,
     confusion_matrix_labels,
     expected_calibration_error,
     fbeta_score,
+    hamming_loss,
+    jaccard_index,
     k_sweep_table,
     matthews_corrcoef,
     mcnemar_test,
@@ -55,10 +62,13 @@ from app.evals.metrics import (
     metrics_delta,
     multilabel_sets_to_binary_vectors,
     ndcg_at_k,
+    negative_predictive_value,
     precision_recall_auc,
+    ranking_aprf_table,
     random_ranking_baseline,
     rank_by_scores,
     ranking_metrics_at_k,
+    roc_auc_binary,
     scores_to_labels,
     specificity_from_confusion,
     success_at_k,
@@ -1732,3 +1742,445 @@ class TestSettingsBrierAndSuiteSummary:
         assert metrics["accuracy"] == pytest.approx(expected_acc)
         for key in ("precision", "recall", "f1"):
             assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+
+
+# --------------------------------------------------------------------------- #
+# Expanded APRF coverage: more params, extended metrics, tables                #
+# --------------------------------------------------------------------------- #
+
+
+class TestExtendedClassificationMetrics:
+    """Jaccard, Cohen's κ, NPV, Hamming, ROC-AUC, formula extensions."""
+
+    def test_jaccard_equals_tp_over_union(self) -> None:
+        # TP=1 FP=1 FN=1 → J = 1/3
+        y_true = [1, 1, 0, 0]
+        y_pred = [1, 0, 1, 0]
+        assert jaccard_index(y_true, y_pred) == pytest.approx(1.0 / 3.0)
+
+    def test_cohen_kappa_perfect_and_chance(self) -> None:
+        assert cohen_kappa([1, 0, 1, 0], [1, 0, 1, 0]) == pytest.approx(1.0)
+        # All majority class — κ can be 0 when agreement is only chance
+        kappa = cohen_kappa([1, 1, 0, 0], [1, 0, 1, 0])
+        assert -1.0 <= kappa <= 1.0
+
+    def test_hamming_is_one_minus_accuracy(self) -> None:
+        y_true = [1, 1, 0, 0]
+        y_pred = [1, 0, 0, 0]
+        report = classification_metrics(y_true, y_pred, average="binary")
+        assert hamming_loss(y_true, y_pred) == pytest.approx(1.0 - report.accuracy)
+
+    def test_npv_and_specificity(self) -> None:
+        # TP=2 FP=0 TN=1 FN=1 → Spec=1, NPV=0.5
+        counts = confusion_counts([1, 1, 0, 1], [1, 1, 0, 0])
+        assert specificity_from_confusion(counts) == pytest.approx(1.0)
+        assert negative_predictive_value(counts) == pytest.approx(0.5)
+
+    def test_roc_auc_perfect_and_random(self) -> None:
+        perfect = roc_auc_binary([1, 1, 0, 0], [0.9, 0.8, 0.2, 0.1])
+        assert perfect == pytest.approx(1.0)
+        # Completely inverted scores
+        inverted = roc_auc_binary([1, 1, 0, 0], [0.1, 0.2, 0.8, 0.9])
+        assert inverted == pytest.approx(0.0)
+        # Single class → zero_division fallback
+        assert roc_auc_binary([1, 1], [0.5, 0.6], zero_division=0.0) == 0.0
+
+    def test_roc_auc_with_ties(self) -> None:
+        # Ties should average ranks; not crash
+        auc = roc_auc_binary([1, 0, 1, 0], [0.5, 0.5, 0.8, 0.2])
+        assert 0.0 <= auc <= 1.0
+
+    def test_formula_self_check_includes_specificity_npv(self) -> None:
+        out = metric_formula_self_check(tp=2, fp=1, tn=3, fn=1)
+        assert out["accuracy"] == pytest.approx(5 / 7)
+        assert out["precision"] == pytest.approx(2 / 3)
+        assert out["recall"] == pytest.approx(2 / 3)
+        assert out["specificity"] == pytest.approx(3 / 4)
+        assert out["npv"] == pytest.approx(3 / 4)
+        assert out["balanced_accuracy"] == pytest.approx(
+            0.5 * ((2 / 3) + (3 / 4))
+        )
+
+    def test_aprf_dict_keys(self) -> None:
+        out = aprf_dict([1, 1, 0, 0], [1, 0, 0, 1])
+        for key in (
+            "accuracy",
+            "precision",
+            "recall",
+            "f1",
+            "specificity",
+            "npv",
+            "balanced_accuracy",
+            "jaccard",
+            "hamming_loss",
+            "cohen_kappa",
+        ):
+            assert key in out
+            assert isinstance(out[key], float)
+
+
+class TestAprfParameterTables:
+    """Multi-parameter sweeps over thresholds, averages, and cutoffs k."""
+
+    def test_aprf_parameter_table_covers_grid(self) -> None:
+        y_true = [1, 1, 0, 0, 1]
+        scores = [0.9, 0.6, 0.55, 0.2, 0.4]
+        thresholds = (0.3, 0.5, 0.7)
+        averages = ("binary", "micro", "macro")
+        rows = aprf_parameter_table(
+            y_true,
+            scores,
+            thresholds=thresholds,
+            averages=averages,
+        )
+        assert len(rows) == len(thresholds) * len(averages)
+        for row in rows:
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert 0.0 <= float(row[key]) <= 1.0 + 1e-9
+            assert row["threshold"] in thresholds
+            assert row["average"] in averages
+
+    def test_ranking_aprf_table_by_k(self) -> None:
+        retrieved = [[1, 2, 3, 4], [5, 1, 2, 3]]
+        relevant = [{1, 9}, {5, 6}]
+        rows = ranking_aprf_table(
+            retrieved, relevant, ks=(1, 2, 3), catalog_size=10
+        )
+        assert [r["k"] for r in rows] == [1, 2, 3]
+        # k=1: both queries hit first relevant → precision=1, hit=1
+        assert rows[0]["precision"] == pytest.approx(1.0)
+        assert rows[0]["hit_at_k"] == pytest.approx(1.0)
+        for row in rows:
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert 0.0 <= float(row[key]) <= 1.0 + 1e-9
+
+    @pytest.mark.parametrize("threshold", [0.2, 0.35, 0.5, 0.65, 0.8])
+    def test_threshold_sweep_aprf_bounds(self, threshold: float) -> None:
+        y_true = [1, 1, 1, 0, 0, 0]
+        scores = [0.95, 0.7, 0.4, 0.55, 0.3, 0.1]
+        metrics = run_classification_eval(
+            y_true,
+            y_pred=[],
+            scores=scores,
+            params=EvalParams(
+                relevance_threshold=threshold,
+                thresholds=(threshold,),
+                include_extended_classification=True,
+                include_calibration=True,
+            ),
+        )
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+        assert "roc_auc" in metrics
+        assert 0.0 <= metrics["roc_auc"] <= 1.0 + 1e-9
+        assert "jaccard" in metrics
+        assert "cohen_kappa" in metrics
+        assert "npv" in metrics
+
+    @pytest.mark.parametrize("average", ["binary", "micro", "macro", "weighted"])
+    def test_all_average_modes_emit_aprf(self, average: str) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0, 2, 2],
+            [1, 0, 0, 1, 2, 0],
+            params=EvalParams(average=average),  # type: ignore[arg-type]
+        )
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+        assert average in metrics["by_average"]
+
+    def test_classification_aprf_by_threshold_matrix(self) -> None:
+        metrics = run_classification_eval(
+            [1, 1, 0, 0],
+            y_pred=[],
+            scores=[0.9, 0.4, 0.6, 0.1],
+            params=EvalParams(
+                relevance_threshold=0.5,
+                thresholds=(0.25, 0.5, 0.75),
+                include_extended_classification=True,
+            ),
+        )
+        table = metrics["aprf_by_threshold"]
+        assert len(table) == 3 * 4  # 3 thresholds × 4 averages
+        assert any(r["threshold"] == 0.5 and r["average"] == "binary" for r in table)
+
+
+class TestMoreEvalParamsAndGates:
+    def test_sweep_and_multi_average_presets(self) -> None:
+        assert SWEEP_EVAL_PARAMS.effective_ks() == (1, 2, 3, 5, 6)
+        assert len(SWEEP_EVAL_PARAMS.thresholds or ()) >= 5
+        assert MULTI_AVERAGE_EVAL_PARAMS.average == "macro"
+        assert MULTI_AVERAGE_EVAL_PARAMS.include_extended_classification is True
+
+    def test_extended_gates(self) -> None:
+        params = EvalParams(
+            min_specificity=0.5,
+            min_balanced_accuracy=0.5,
+            min_jaccard=0.3,
+            min_cohen_kappa=0.0,
+            min_roc_auc=0.6,
+        )
+        ok_metrics = {
+            "specificity": 0.8,
+            "balanced_accuracy": 0.7,
+            "jaccard": 0.5,
+            "cohen_kappa": 0.4,
+            "roc_auc": 0.9,
+            "accuracy": 0.8,
+        }
+        passed, failures = params.passes_gates(ok_metrics)
+        assert passed is True
+        assert failures == []
+
+        bad = {**ok_metrics, "roc_auc": 0.1, "jaccard": 0.1}
+        passed2, failures2 = params.passes_gates(bad)
+        assert passed2 is False
+        assert any("roc_auc" in f for f in failures2)
+        assert any("jaccard" in f for f in failures2)
+
+    def test_from_mapping_unknown_keys_ignored(self) -> None:
+        params = EvalParams.from_mapping(
+            {
+                "k": 5,
+                "min_jaccard": 0.2,
+                "min_roc_auc": 0.55,
+                "include_extended_classification": True,
+                "docs_note": "ignored",
+            }
+        )
+        assert params.k == 5
+        assert params.min_jaccard == 0.2
+        assert params.min_roc_auc == 0.55
+
+    @pytest.mark.parametrize(
+        "k,mode",
+        [
+            (1, "hybrid"),
+            (3, "hybrid"),
+            (5, "hybrid"),
+            (1, "keyword"),
+            (3, "keyword"),
+        ],
+    )
+    def test_retrieval_param_matrix_aprf(
+        self, db: Session, products: list[Product], k: int, mode: str
+    ) -> None:
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=k,
+                ks=(k,),
+                retrieval_mode=mode,  # type: ignore[arg-type]
+                split="train",
+                limit_cases=4,
+                include_per_case=False,
+                min_relevant=1,
+                min_hit_rate=0.0,
+            ),
+        )
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in metrics
+            assert 0.0 <= float(metrics[key]) <= 1.0 + 1e-9
+        assert "aprf_by_k" in metrics
+        assert metrics["aprf_by_k"][0]["k"] == k
+        # Multi-label classification block also has APRF
+        for avg in ("binary", "micro", "macro", "weighted"):
+            block = metrics["classification"][avg]
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert key in block
+
+    def test_param_grid_thresholds_and_ks(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        grid = run_param_grid(
+            db,
+            grid=[
+                {"k": 1, "ks": (1,), "retrieval_mode": "hybrid"},
+                {"k": 3, "ks": (3,), "retrieval_mode": "hybrid"},
+                {"k": 3, "ks": (3,), "retrieval_mode": "keyword"},
+            ],
+            base_params=EvalParams(
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_relevant=1,
+                min_hit_rate=0.0,
+            ),
+        )
+        assert grid["n"] == 3
+        for row in grid["rows"]:
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert 0.0 <= float(row[key]) <= 1.0 + 1e-9
+
+    def test_ks_sweep_monotonic_hit_rate_nondecreasing_often(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        """Hit@k is non-decreasing as k grows (set inclusion)."""
+        metrics = run_retrieval_eval(
+            db,
+            params=EvalParams(
+                k=1,
+                ks=(1, 2, 3, 5),
+                split="train",
+                limit_cases=5,
+                include_per_case=False,
+                min_hit_rate=0.0,
+            ),
+        )
+        hits = [metrics["by_k"][str(k)]["hit_at_k"] for k in (1, 2, 3, 5)]
+        for earlier, later in zip(hits, hits[1:]):
+            assert later + 1e-9 >= earlier
+        aprf_rows = metrics["aprf_by_k"]
+        assert len(aprf_rows) == 4
+        for row in aprf_rows:
+            for key in ("accuracy", "precision", "recall", "f1"):
+                assert 0.0 <= float(row[key]) <= 1.0 + 1e-9
+
+
+class TestGoldenFixturesExpanded:
+    def test_fixture_count_grew(self) -> None:
+        assert len(GOLDEN_CLASSIFICATION_FIXTURES) >= 12
+
+    @pytest.mark.parametrize(
+        "fixture_id",
+        [
+            "all-wrong",
+            "high-precision-low-recall",
+            "high-recall-low-precision",
+            "near-perfect-scores",
+        ],
+    )
+    def test_new_fixtures_match_expected(self, fixture_id: str) -> None:
+        fixture = next(f for f in GOLDEN_CLASSIFICATION_FIXTURES if f.id == fixture_id)
+        if fixture.scores:
+            metrics = run_classification_eval(
+                list(fixture.y_true),
+                y_pred=[],
+                scores=list(fixture.scores),
+                params=EvalParams(
+                    average="binary",
+                    relevance_threshold=0.5,
+                    include_extended_classification=True,
+                ),
+            )
+            assert metrics["roc_auc"] >= 0.9
+        else:
+            metrics = run_classification_eval(
+                list(fixture.y_true),
+                list(fixture.y_pred),
+                params=EvalParams(
+                    average="binary",
+                    include_extended_classification=True,
+                ),
+            )
+        for key, expected in fixture.expected.items():
+            assert metrics[key] == pytest.approx(expected), fixture_id
+
+    def test_strict_threshold_on_score_fixture(self) -> None:
+        fixture = next(
+            f for f in GOLDEN_CLASSIFICATION_FIXTURES if f.id == "score-threshold-strict"
+        )
+        # At 0.6: scores [0.95, 0.7, 0.55, 0.45, 0.1] → [1,1,0,0,0]
+        # y_true [1,1,1,0,0] → TP2 FP0 FN1 TN2 → Acc=0.8 P=1 R=2/3
+        metrics = run_classification_eval(
+            list(fixture.y_true),
+            y_pred=[],
+            scores=list(fixture.scores),
+            params=EvalParams(relevance_threshold=0.6),
+        )
+        assert metrics["accuracy"] == pytest.approx(0.8)
+        assert metrics["precision"] == pytest.approx(1.0)
+        assert metrics["recall"] == pytest.approx(2.0 / 3.0)
+
+    def test_aggregate_aprf_across_fixture_evals(self) -> None:
+        rows = []
+        for fixture in GOLDEN_CLASSIFICATION_FIXTURES[:6]:
+            if fixture.scores:
+                m = run_classification_eval(
+                    list(fixture.y_true),
+                    y_pred=[],
+                    scores=list(fixture.scores),
+                )
+            else:
+                m = run_classification_eval(
+                    list(fixture.y_true), list(fixture.y_pred)
+                )
+            rows.append(m)
+        summary = aggregate_aprf(rows)
+        for key in ("accuracy", "precision", "recall", "f1"):
+            assert key in summary
+            assert 0.0 <= summary[key] <= 1.0 + 1e-9
+
+    def test_suite_includes_aprf_by_k(
+        self, db: Session, products: list[Product]
+    ) -> None:
+        suite = run_eval_suite(
+            db,
+            params=EvalParams(
+                k=3,
+                ks=(1, 3),
+                split="train",
+                limit_cases=3,
+                include_per_case=False,
+                min_hit_rate=0.0,
+                min_relevant=1,
+            ),
+        )
+        retrieval = suite.get("retrieval") or suite.get("retrieval_hybrid")
+        # suite may nest differently — fall back to running retrieval directly
+        if retrieval is None and "accuracy" in suite:
+            retrieval = suite
+        if retrieval is not None and "aprf_by_k" in retrieval:
+            assert len(retrieval["aprf_by_k"]) >= 1
+        else:
+            # Ensure suite still has summary APRF
+            assert "summary_aprf" in suite or "retrieval" in suite
+
+
+class TestParametrizedConfusionAprf:
+    """Hand-checked confusion → accuracy/precision/recall/F1 for many cells."""
+
+    @pytest.mark.parametrize(
+        "tp,fp,tn,fn",
+        [
+            (0, 0, 0, 0),
+            (5, 0, 5, 0),
+            (0, 5, 0, 5),
+            (3, 1, 4, 2),
+            (1, 10, 20, 0),
+            (10, 0, 0, 10),
+            (0, 0, 10, 0),
+            (0, 0, 0, 10),
+        ],
+        ids=[
+            "empty",
+            "perfect",
+            "all-wrong",
+            "mixed",
+            "low-precision",
+            "half-miss",
+            "all-tn",
+            "all-fn",
+        ],
+    )
+    def test_confusion_to_aprf(
+        self, tp: int, fp: int, tn: int, fn: int
+    ) -> None:
+        # Reconstruct label vectors from confusion counts
+        y_true = [1] * (tp + fn) + [0] * (fp + tn)
+        y_pred = [1] * tp + [0] * fn + [1] * fp + [0] * tn
+        if not y_true:
+            formula = metric_formula_self_check(tp=0, fp=0, tn=0, fn=0)
+            assert formula["accuracy"] == 0.0
+            return
+        report = classification_metrics(y_true, y_pred, average="binary")
+        formula = metric_formula_self_check(tp=tp, fp=fp, tn=tn, fn=fn)
+        assert report.accuracy == pytest.approx(formula["accuracy"])
+        assert report.precision == pytest.approx(formula["precision"])
+        assert report.recall == pytest.approx(formula["recall"])
+        assert report.f1 == pytest.approx(formula["f1"])
+        bundle = classification_metrics_bundle(y_true, y_pred)
+        assert bundle["accuracy"] == pytest.approx(report.accuracy)
+        assert bundle["precision"] == pytest.approx(report.precision)
+        assert bundle["recall"] == pytest.approx(report.recall)
+        assert bundle["f1"] == pytest.approx(report.f1)

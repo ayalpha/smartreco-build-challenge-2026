@@ -1309,25 +1309,281 @@ def metric_formula_self_check(
     fn: int,
     zero_division: float = _DEFAULT_ZERO,
 ) -> dict[str, float]:
-    """Compute A/P/R/F1 from raw confusion counts (formula regression helper).
+    """Compute A/P/R/F1 (+ relatives) from raw confusion counts.
 
-    accuracy  = (TP+TN)/(TP+TN+FP+FN)
-    precision = TP/(TP+FP)
-    recall    = TP/(TP+FN)
-    f1        = 2PR/(P+R)
+    accuracy     = (TP+TN)/(TP+TN+FP+FN)
+    precision    = TP/(TP+FP)
+    recall       = TP/(TP+FN)
+    f1           = 2PR/(P+R)
+    specificity  = TN/(TN+FP)
+    npv          = TN/(TN+FN)
+    balanced_acc = (recall + specificity) / 2
     """
     total = tp + fp + tn + fn
     accuracy = _safe_div(tp + tn, total, zero_division)
     precision = _safe_div(tp, tp + fp, zero_division)
     recall = _safe_div(tp, tp + fn, zero_division)
     f1 = _f1(precision, recall, zero_division)
+    specificity = _safe_div(tn, tn + fp, zero_division)
+    npv = _safe_div(tn, tn + fn, zero_division)
+    balanced = 0.5 * (recall + specificity)
     return {
         "accuracy": accuracy,
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        "specificity": specificity,
+        "npv": npv,
+        "balanced_accuracy": balanced,
         "support": float(tp + fn),
     }
+
+
+def negative_predictive_value(
+    counts: ConfusionCounts, *, zero_division: float = _DEFAULT_ZERO
+) -> float:
+    """NPV = TN / (TN + FN) — precision of the negative class."""
+    return _safe_div(counts.tn, counts.tn + counts.fn, zero_division)
+
+
+def jaccard_index(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Jaccard / IoU for the positive class: TP / (TP + FP + FN)."""
+    counts = confusion_counts(y_true, y_pred, positive_label=positive_label)
+    return _safe_div(
+        counts.tp,
+        counts.tp + counts.fp + counts.fn,
+        zero_division,
+    )
+
+
+def hamming_loss(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Fraction of labels that differ (1 − accuracy for single-label)."""
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true/y_pred length mismatch")
+    if not y_true:
+        return float(zero_division)
+    mismatches = sum(1 for t, p in zip(y_true, y_pred) if t != p)
+    return mismatches / len(y_true)
+
+
+def cohen_kappa(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    labels: Optional[Sequence[Label]] = None,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """Cohen's κ agreement beyond chance: (p_o − p_e) / (1 − p_e).
+
+    ``p_o`` is observed accuracy; ``p_e`` is expected accuracy under independent
+    marginal label frequencies.
+    """
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true/y_pred length mismatch")
+    n = len(y_true)
+    if n == 0:
+        return float(zero_division)
+    if labels is None:
+        label_set = sorted(set(y_true) | set(y_pred), key=_labels_to_str)
+    else:
+        label_set = list(labels)
+    if not label_set:
+        return float(zero_division)
+
+    correct = sum(1 for t, p in zip(y_true, y_pred) if t == p)
+    p_o = correct / n
+    # Marginal frequencies
+    true_counts = {lbl: 0 for lbl in label_set}
+    pred_counts = {lbl: 0 for lbl in label_set}
+    for t, p in zip(y_true, y_pred):
+        if t in true_counts:
+            true_counts[t] += 1
+        if p in pred_counts:
+            pred_counts[p] += 1
+    p_e = sum((true_counts[lbl] / n) * (pred_counts[lbl] / n) for lbl in label_set)
+    if abs(1.0 - p_e) < 1e-12:
+        return float(zero_division)
+    return (p_o - p_e) / (1.0 - p_e)
+
+
+def roc_auc_binary(
+    y_true: Sequence[Label],
+    scores: Sequence[float],
+    *,
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> float:
+    """ROC AUC via Mann–Whitney / Wilcoxon rank-sum (tie-averaged).
+
+    AUC = P(score_pos > score_neg) + 0.5 · P(score_pos == score_neg).
+    Returns ``zero_division`` when only one class is present.
+    """
+    if len(y_true) != len(scores):
+        raise ValueError("y_true/scores length mismatch")
+    pos = [float(s) for t, s in zip(y_true, scores) if t == positive_label]
+    neg = [float(s) for t, s in zip(y_true, scores) if t != positive_label]
+    if not pos or not neg:
+        return float(zero_division)
+    n_pos = len(pos)
+    n_neg = len(neg)
+    # Rank all scores (average ranks for ties)
+    paired = sorted(
+        [(s, "pos") for s in pos] + [(s, "neg") for s in neg],
+        key=lambda x: x[0],
+    )
+    ranks = [0.0] * len(paired)
+    i = 0
+    while i < len(paired):
+        j = i
+        while j < len(paired) and paired[j][0] == paired[i][0]:
+            j += 1
+        # ranks are 1-based; average for ties
+        avg_rank = (i + 1 + j) / 2.0
+        for k in range(i, j):
+            ranks[k] = avg_rank
+        i = j
+    sum_pos_ranks = sum(
+        rank for rank, (_, kind) in zip(ranks, paired) if kind == "pos"
+    )
+    # AUC = (sum_ranks_pos − n_pos*(n_pos+1)/2) / (n_pos * n_neg)
+    u = sum_pos_ranks - n_pos * (n_pos + 1) / 2.0
+    return u / (n_pos * n_neg)
+
+
+def aprf_dict(
+    y_true: Sequence[Label],
+    y_pred: Sequence[Label],
+    *,
+    average: str = "binary",
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> dict[str, float]:
+    """Compact accuracy / precision / recall / F1 (+ extras) dict.
+
+    Always includes ``accuracy``, ``precision``, ``recall``, ``f1``.
+    For binary mode also adds specificity, NPV, balanced_accuracy, jaccard,
+    hamming_loss, and Cohen's κ.
+    """
+    report = classification_metrics(
+        y_true,
+        y_pred,
+        average=average,
+        positive_label=positive_label,
+        zero_division=zero_division,
+    )
+    out: dict[str, float] = {
+        "accuracy": report.accuracy,
+        "precision": report.precision,
+        "recall": report.recall,
+        "f1": report.f1,
+        "support": float(report.support),
+    }
+    if average == "binary":
+        counts = confusion_counts(y_true, y_pred, positive_label=positive_label)
+        out["specificity"] = specificity_from_confusion(
+            counts, zero_division=zero_division
+        )
+        out["npv"] = negative_predictive_value(counts, zero_division=zero_division)
+        out["balanced_accuracy"] = balanced_accuracy_from_confusion(
+            counts, zero_division=zero_division
+        )
+        out["jaccard"] = jaccard_index(
+            y_true,
+            y_pred,
+            positive_label=positive_label,
+            zero_division=zero_division,
+        )
+        out["hamming_loss"] = hamming_loss(
+            y_true, y_pred, zero_division=zero_division
+        )
+        out["cohen_kappa"] = cohen_kappa(
+            y_true, y_pred, zero_division=zero_division
+        )
+    return out
+
+
+def aprf_parameter_table(
+    y_true: Sequence[Label],
+    scores: Sequence[float],
+    *,
+    thresholds: Sequence[float],
+    averages: Sequence[str] = ("binary",),
+    positive_label: Label = 1,
+    zero_division: float = _DEFAULT_ZERO,
+) -> list[dict[str, Any]]:
+    """Accuracy/precision/recall/F1 for every (threshold × average) pair.
+
+    Useful for offline sensitivity analysis and parametrized tests.
+    """
+    rows: list[dict[str, Any]] = []
+    negative_label: Label = 0 if positive_label != 0 else -1
+    for threshold in sorted(float(t) for t in thresholds):
+        preds = scores_to_labels(
+            scores,
+            threshold=threshold,
+            positive_label=positive_label,
+            negative_label=negative_label,
+        )
+        for average in averages:
+            metrics = aprf_dict(
+                y_true,
+                preds,
+                average=average,
+                positive_label=positive_label,
+                zero_division=zero_division,
+            )
+            rows.append(
+                {
+                    "threshold": threshold,
+                    "average": average,
+                    **metrics,
+                }
+            )
+    return rows
+
+
+def ranking_aprf_table(
+    retrieved: Sequence[Sequence[Label]],
+    relevant: Sequence[Iterable[Label]],
+    *,
+    ks: Sequence[int],
+    catalog_size: Optional[int] = None,
+    zero_division: float = _DEFAULT_ZERO,
+) -> list[dict[str, Any]]:
+    """Precision/recall/F1/accuracy/hit/MRR rows for each cutoff in ``ks``."""
+    rows: list[dict[str, Any]] = []
+    for k in ks:
+        report = ranking_metrics_at_k(
+            retrieved,
+            relevant,
+            k=int(k),
+            catalog_size=catalog_size,
+            zero_division=zero_division,
+        )
+        payload = report.to_dict()
+        rows.append(
+            {
+                "k": report.k,
+                "accuracy": payload["accuracy_at_k"],
+                "precision": payload["precision_at_k"],
+                "recall": payload["recall_at_k"],
+                "f1": payload["f1_at_k"],
+                "hit_at_k": payload["hit_at_k"],
+                "mrr": payload["mrr"],
+            }
+        )
+    return rows
 
 
 def _log2(value: float) -> float:

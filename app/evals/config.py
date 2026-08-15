@@ -54,6 +54,10 @@ class EvalParams:
             (always includes F1 via beta=1 implicitly in primary metrics).
         min_ndcg / min_map: Optional ranking quality gates.
         min_pr_auc: Optional gate on precision–recall AUC (score-based evals).
+        min_specificity / min_balanced_accuracy / min_jaccard / min_cohen_kappa /
+            min_roc_auc: Optional extended classification gates.
+        include_extended_classification: When True, classification evals attach
+            NPV, Jaccard, Hamming loss, Cohen's κ, and ROC-AUC (if scores).
         compare_modes: When non-empty, CLI/harness can run multi-mode compare.
         leave_one_out: When True, also report leave-one-case-out metric means.
         n_bootstrap: Bootstrap resamples for classification CI (0 disables).
@@ -79,6 +83,12 @@ class EvalParams:
     min_ndcg: Optional[float] = None
     min_map: Optional[float] = None
     min_pr_auc: Optional[float] = None
+    min_specificity: Optional[float] = None
+    min_balanced_accuracy: Optional[float] = None
+    min_jaccard: Optional[float] = None
+    min_cohen_kappa: Optional[float] = None
+    min_roc_auc: Optional[float] = None
+    include_extended_classification: bool = True
     split: SplitName = "all"
     case_ids: Optional[tuple[str, ...]] = None
     exclude_case_ids: Optional[tuple[str, ...]] = None
@@ -301,6 +311,15 @@ class EvalParams:
             ("map", self.min_map, ("map_at_k", "map")),
             ("pr_auc", self.min_pr_auc, ("pr_auc",)),
             ("success_at_k", self.min_success_at_k, ("success_at_k",)),
+            ("specificity", self.min_specificity, ("specificity",)),
+            (
+                "balanced_accuracy",
+                self.min_balanced_accuracy,
+                ("balanced_accuracy",),
+            ),
+            ("jaccard", self.min_jaccard, ("jaccard",)),
+            ("cohen_kappa", self.min_cohen_kappa, ("cohen_kappa", "kappa")),
+            ("roc_auc", self.min_roc_auc, ("roc_auc", "auc")),
         )
         for label, minimum, keys in checks:
             if minimum is None:
@@ -380,4 +399,33 @@ STRICT_EVAL_PARAMS = EvalParams(
     min_mrr=0.3,
     min_success_at_k=0.2,
     include_per_case=True,
+)
+
+#: Wide parameter surface for sensitivity / APRF matrix tests.
+SWEEP_EVAL_PARAMS = EvalParams(
+    k=3,
+    ks=(1, 2, 3, 5, 6),
+    thresholds=(0.2, 0.3, 0.35, 0.4, 0.5, 0.6, 0.7, 0.8),
+    relevance_threshold=0.5,
+    average="binary",
+    f_betas=(0.5, 1.5, 2.0),
+    include_ndcg=True,
+    include_map=True,
+    include_calibration=True,
+    include_extended_classification=True,
+    calibration_bins=10,
+    min_relevant=1,
+    n_bootstrap=0,
+)
+
+#: Multi-average classification regression (micro/macro/weighted).
+MULTI_AVERAGE_EVAL_PARAMS = EvalParams(
+    average="macro",
+    thresholds=(0.25, 0.5, 0.75),
+    include_extended_classification=True,
+    f_betas=(0.5, 2.0),
+    min_accuracy=0.0,
+    min_precision=0.0,
+    min_recall=0.0,
+    min_f1=0.0,
 )
