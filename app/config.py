@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 #: Substrings that mark a settings field as secret for :meth:`Settings.safe_dump`.
 _SECRET_HINTS = ("key", "token", "password", "secret", "dsn")
+_DEVELOPMENT_SECRET_KEY = "dev-only-insecure-secret-key-change-me-please-32"
 
 
 class Settings(BaseSettings):
@@ -73,7 +74,7 @@ class Settings(BaseSettings):
     vector_search_top_k: int = 12
 
     # ---------------------------------------------------------------- auth
-    secret_key: str = "dev-only-insecure-secret-key-change-me-please-32"
+    secret_key: str = _DEVELOPMENT_SECRET_KEY
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080  # 7 days
 
@@ -205,6 +206,20 @@ class Settings(BaseSettings):
             self.base_url = external.rstrip("/")
             logger.info("Detected platform public URL — BASE_URL=%s", self.base_url)
 
+        return self
+
+    @model_validator(mode="after")
+    def _reject_insecure_production_defaults(self) -> "Settings":
+        """Refuse to boot production with development-only security settings."""
+        if not self.is_production:
+            return self
+
+        if self.secret_key == _DEVELOPMENT_SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY must be set to a unique random value in production"
+            )
+        if self.debug:
+            raise ValueError("DEBUG must be false in production")
         return self
 
     # -------------------------------------------------------- derived props
