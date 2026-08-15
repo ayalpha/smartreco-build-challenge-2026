@@ -1,6 +1,7 @@
 """Unit tests for the recommendation evaluation harness."""
 
 import json
+import math
 import subprocess
 import sys
 
@@ -31,6 +32,19 @@ def test_top_k_and_threshold_are_applied_in_score_order() -> None:
     assert select_predictions({"low": .2, "best": .9, "mid": .7}, k=2, threshold=.5) == {"best", "mid"}
 
 
+@pytest.mark.parametrize("score", [-0.1, 1.1, math.inf, math.nan, "high"])
+def test_invalid_prediction_scores_raise(score: object) -> None:
+    with pytest.raises(ValueError, match="scores"):
+        select_predictions({"a": score})
+
+
+def test_non_string_labels_raise() -> None:
+    with pytest.raises(ValueError, match="expected labels"):
+        evaluate([[1]], [["a"]])
+    with pytest.raises(ValueError, match="prediction labels"):
+        evaluate([["a"]], [[1]])
+
+
 def test_empty_input_has_defined_zero_metrics() -> None:
     result = evaluate([], [], labels=["a"])
     assert result.examples == 0
@@ -52,8 +66,11 @@ def test_length_mismatch_and_unknown_configured_labels_raise() -> None:
 
 def test_cli_reads_fixture_and_writes_report(tmp_path) -> None:
     fixture = tmp_path / "fixture.json"
-    output = tmp_path / "report.json"
-    fixture.write_text(json.dumps({"examples": [{"expected": ["a"], "predicted": {"a": .8, "b": .2}}]}))
+    output = tmp_path / "reports" / "report.json"
+    fixture.write_text(json.dumps({
+        "parameters": {"threshold": .9, "labels": ["a", "b"]},
+        "examples": [{"expected": ["a"], "predicted": {"a": .8, "b": .2}}],
+    }))
     completed = subprocess.run(
         [sys.executable, "scripts/evaluate_recommendations.py", "--fixtures", str(fixture),
          "--threshold", "0.5", "--labels", "a", "b", "--output", str(output)],
@@ -61,4 +78,16 @@ def test_cli_reads_fixture_and_writes_report(tmp_path) -> None:
     )
     report = json.loads(completed.stdout)
     assert report["accuracy"] == 1.0
+    assert report["parameters"] == {"k": None, "labels": ["a", "b"], "threshold": .5}
     assert json.loads(output.read_text())["examples"] == 1
+
+
+def test_cli_rejects_malformed_fixture(tmp_path) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"examples": [{"expected": ["a"]}]}))
+    completed = subprocess.run(
+        [sys.executable, "scripts/evaluate_recommendations.py", "--fixtures", str(fixture)],
+        capture_output=True, text=True,
+    )
+    assert completed.returncode != 0
+    assert "must contain expected and predicted" in completed.stderr

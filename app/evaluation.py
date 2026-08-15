@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from math import isfinite
 from typing import Iterable, Mapping, Sequence
 
 
@@ -35,12 +36,24 @@ def select_predictions(
         raise ValueError("threshold must be between 0 and 1")
 
     if isinstance(predictions, Mapping):
+        invalid_labels = [label for label in predictions if not isinstance(label, str)]
+        if invalid_labels:
+            raise ValueError("prediction labels must be strings")
+        invalid_scores = [
+            score
+            for score in predictions.values()
+            if not isinstance(score, (int, float)) or not isfinite(score) or not 0 <= score <= 1
+        ]
+        if invalid_scores:
+            raise ValueError("prediction scores must be finite numbers between 0 and 1")
         ranked = sorted(predictions.items(), key=lambda item: (-item[1], item[0]))
         if threshold is not None:
             ranked = [item for item in ranked if item[1] >= threshold]
         labels = [label for label, _ in ranked]
     else:
         labels = list(predictions)
+        if any(not isinstance(label, str) for label in labels):
+            raise ValueError("prediction labels must be strings")
     return set(labels[:k] if k is not None else labels)
 
 
@@ -56,6 +69,8 @@ def evaluate(
     if len(expected) != len(predicted):
         raise ValueError("expected and predicted must contain the same number of examples")
     truth = [set(values) for values in expected]
+    if any(not isinstance(label, str) for row in truth for label in row):
+        raise ValueError("expected labels must be strings")
     guesses = [select_predictions(values, k=k, threshold=threshold) for values in predicted]
     label_set = set(labels or ())
     if labels is None:
